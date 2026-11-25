@@ -37,6 +37,7 @@ const toReplyBlock = (block: OutputBlockStart, now: number): ReplyBlock | null =
         type: 'thinking',
         thinking: block.thinking,
         signature: block.signature,
+        ...(block.opaqueReasoning ? { opaqueReasoning: block.opaqueReasoning } : {}),
         startedAt: now,
       }
     case 'server_tool_use':
@@ -211,17 +212,29 @@ const toUserParam = ({ content, files }: UserMessage, targetProviderId: string |
 
 /**
  * assistant 的内容块按历史与续写场景转换：
- * - 历史思考及其签名不回传；开启思考时续写只保留本轮非空白思考及其签名；
+ * - 历史可见思考及签名不回传；opaque 上下文仅同渠道同模型回传，与思考开关无关；
+ * - 开启思考时续写只保留本轮非空白思考及其签名；
  * - 文本块去掉 citations（服务端忽略）。相邻文本直接拼接，被思考或工具隔开的文本用空行连接；
  *   省略历史思考后仍保留其前后正文的空行；
  * - 工具调用和结果只保留 kind 为 read_link 的块，其他历史工具块不回传；
  * - 阅读链接结果原样回传，保留 signature：服务端解密后将页面拼回该轮提问末尾；
  */
 const toAssistantParam = (
-  { blocks, providerId }: AssistantMessage,
+  { blocks, providerId, model }: AssistantMessage,
   prefix = false,
-  thinking = false
+  thinking = false,
+  targetProviderId?: string,
+  targetModelId?: string,
 ): Extract<MessageParam, { role: 'assistant' }> => {
+  // Saved metadata is independent of the UI thinking toggle. Never reuse it
+  // across a channel/model change; portable text history still goes through.
+  const opaque: AssistantBlockParam[] = blocks.flatMap((block) => {
+    if (block.type !== 'thinking' || !block.opaqueReasoning || providerId !== targetProviderId || model !== targetModelId) { return [] }
+    const value = block.opaqueReasoning
+    return value.provider_id === targetProviderId && value.model_id === targetModelId
+      ? [{ type: 'thinking' as const, thinking: '', signature: '', opaqueReasoning: value }]
+      : []
+  })
   const content: AssistantBlockParam[] = []
   // 成功阅读的网页靠签名恢复正文；缺少有效签名时，调用与结果都不回传。
   const unsignedReadLinks = new Set(
@@ -278,7 +291,8 @@ const toAssistantParam = (
     role: 'assistant',
     // Stored origin lets the server retain same-provider READ_LINK signatures only.
     ...(providerId ? { provider_id: providerId } : {}),
-    content: content.filter((block) => block.type !== 'text' || block.text !== ''),
+    ...(model ? { model_id: model } : {}),
+    content: [...opaque, ...content.filter((block) => block.type !== 'text' || block.text !== '')],
   }
 }
 
@@ -306,6 +320,7 @@ export const toRequestMessages = (
   thinking = prefix?.thinking ?? false,
   latestReminder?: string,
   targetProviderId = selectedTarget()?.provider.id,
+  targetModelId = selectedTarget()?.model.id,
 ): MessageParam[] => {
   const messages: MessageParam[] = []
   let previousReminder: string | undefined
@@ -320,12 +335,12 @@ export const toRequestMessages = (
     // Empty text-only imported rounds can be omitted; unresolved attachments must never be.
     if (!user.content && user.files.length === 0) { continue }
     appendReminder(reply.latestReminder)
-    messages.push(toUserParam(user, targetProviderId), toAssistantParam(reply))
+    messages.push(toUserParam(user, targetProviderId), toAssistantParam(reply, false, false, targetProviderId, targetModelId))
   }
   appendReminder(latestReminder)
   messages.push(toUserParam(question, targetProviderId))
   if (prefix?.prefix) {
-    const assistant = toAssistantParam(prefix, true, thinking)
+    const assistant = toAssistantParam(prefix, true, thinking, targetProviderId, targetModelId)
     // 没有非空白正文或有效思考时直接重发原问题，避免服务端拒绝空 Prefill。
     if (
       assistant.content.some(

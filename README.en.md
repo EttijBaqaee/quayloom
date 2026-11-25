@@ -1,4 +1,4 @@
-# Quayloom · 0.3.7
+# Quayloom · 0.3.8
 
 [![简体中文](https://img.shields.io/badge/简体中文-Readme-lightgrey)](README.md) [![English](https://img.shields.io/badge/English-Current-blue)](README.en.md) ![License](https://img.shields.io/badge/license-AGPL--3.0--only-green) ![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)
 
@@ -22,6 +22,8 @@ Quayloom is a self-hosted, multi-provider AI chat workspace built on the officia
 
 ## What's new
 
+Version **0.3.8** adds a **Grok (xAI)** provider preset using `https://api.x.ai/v1`. Discover account-available models on the server or enter IDs manually. Newly added models at the official xAI endpoint default to Responses; existing model protocols remain unchanged. Encrypted server-side keys, persistent jobs and provider quotas are reused, without automatically enabling search or other capabilities. Existing Android clients can use the channel without upgrading.
+
 Version **0.3.7** adds administrator-only stable-release update checks with manual checking and bilingual status messages, without automatic upgrades. It changes the default backend, Docker and Compose port to **9810**. Explicit `PORT` settings continue to override the default. Docker images are published to GHCR, and Android APKs are distributed through GitHub Releases. Android **0.2.1** adds encrypted credential remembering and controlled autofill, scoped to the exact workspace address and login mode; it never automatically submits a login.
 
 Version 0.3.6 adds Chinese / English switching on login, chat and admin pages. The initial language follows the browser language. Appearance supports light, dark and browser-following modes, defaulting to the browser preference and reacting to live changes. Both preferences persist across refreshes and synchronize between same-origin tabs; signing out does not clear them. User content, provider names and model IDs are not translated.
@@ -29,7 +31,7 @@ Version 0.3.6 adds Chinese / English switching on login, chat and admin pages. T
 ## Features
 
 - Streaming conversations, message branches, Markdown, math, Mermaid and history ZIP import/export.
-- Provider presets for DeepSeek, OpenAI, Anthropic, OpenRouter, Ollama and custom endpoints.
+- Provider presets for DeepSeek, OpenAI, Grok (xAI), Anthropic, OpenRouter, Ollama and custom endpoints.
 - Administrator-managed model discovery, defaults, protocol selection and capability flags.
 - Access codes with expiry and allowed providers/models. Login silently trims surrounding whitespace without changing internal characters.
 - Shared provider concurrency limits, plus independent access-code × provider request, token and concurrency quotas.
@@ -44,7 +46,7 @@ Access codes currently allow **text and reasoning only**, not search, file or vo
 
 ### Prebuilt GHCR image
 
-Image: `ghcr.io/ettijbaqaee/quayloom:0.3.7`; rolling tag: `latest`; platform: `linux/amd64`.
+Image: `ghcr.io/ettijbaqaee/quayloom:0.3.8`; rolling tag: `latest`; platform: `linux/amd64`.
 
 This is the complete composition, identical to [compose.ghcr.yaml](compose.ghcr.yaml). Import it into 1Panel or use the repository file:
 
@@ -52,7 +54,7 @@ This is the complete composition, identical to [compose.ghcr.yaml](compose.ghcr.
 name: quayloom
 services:
   quayloom:
-    image: ghcr.io/ettijbaqaee/quayloom:0.3.7
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.8
     pull_policy: always
     init: true
     restart: unless-stopped
@@ -166,6 +168,8 @@ The public tree excludes internal tests, verification scripts, screenshots and a
 2. Enter the Base URL and API key. Leaving a key blank preserves the saved key; clearing it requires an explicit action.
 3. Discover models or enter their actual IDs manually, then configure capabilities according to provider documentation.
 4. Choose a default model and return to chat. The connection check tests model listing and authentication, not inference or tool availability.
+
+**Grok (xAI):** choose its quick preset, enter your xAI API key and use `https://api.x.ai/v1`. Model discovery requests `/v1/models` from the server without starting chat generation. Use IDs actually available to the account, or enter IDs manually. New models at the official xAI endpoint default to [Responses](https://docs.x.ai/developers/model-capabilities/text/comparison), with explicit per-model protocol selection; existing models are never switched automatically. Configure reasoning, search and image capabilities only when the actual model supports them; they are disabled by default.
 
 | Protocol | Supported scope |
 | --- | --- |

@@ -1032,7 +1032,7 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
       max_tokens: target.model.maxOutputTokens,
       ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       system: SYSTEM_PROMPT,
-      messages: toRequestMessages(prepared.history, prepared.question, prepared.prefix, initial.thinking ?? false, latestReminder, target.provider.id),
+      messages: toRequestMessages(prepared.history, prepared.question, prepared.prefix, initial.thinking ?? false, latestReminder, target.provider.id, target.model.id),
       thinking: { type: capabilities.thinking && initial.thinking ? 'enabled' : 'disabled' },
       safety_check: SAFETY_CHECK,
       tools: capabilities.search ? serverTools(initial.search ?? false, target.provider.type) : [],

@@ -99,6 +99,14 @@ const fileEntry: Read<FileEntry> = (value) => {
   }
 }
 
+const opaqueReasoning = (value: unknown) => {
+  const item = record(value)
+  if (Object.keys(item).some(key => !['id', 'encrypted_content', 'provider_id', 'model_id'].includes(key))) { return invalid() }
+  const id = string(item.id), encrypted_content = string(item.encrypted_content), provider_id = string(item.provider_id), model_id = string(item.model_id)
+  if (!id.length || id.length > 256 || !encrypted_content.length || encrypted_content.length > 1024 * 1024 || !provider_id.length || provider_id.length > 512 || !model_id.length || model_id.length > 512) { return invalid() }
+  return { id, encrypted_content, provider_id, model_id }
+}
+
 const readFragment: Read<Fragment> = (value) => {
   const item = record(value)
   const type = string(item.type)
@@ -114,6 +122,7 @@ const readFragment: Read<Fragment> = (value) => {
         type,
         content: string(item.content),
         elapsed_secs: nullable(number)(item.elapsed_secs),
+        ...('opaque_reasoning' in item ? { opaque_reasoning: opaqueReasoning(item.opaque_reasoning) } : {}),
       }
     case 'TIP':
       return { type, content: string(item.content), style: tipStyle(item.style) }

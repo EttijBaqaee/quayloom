@@ -238,7 +238,9 @@ function requireCapability(provider, model, capability) {
     if (provider.type !== 'deepseek' || url.hostname !== 'api.deepseek.com' || url.protocol !== 'https:' || (url.port && url.port !== '443')) fail(`${capability} requires the official DeepSeek native API`);
   }
 }
-function textContent(content, {provider, model, native, origin, role}) {
+// Local-only provenance envelope; never spread it into an upstream request.
+export const isOpaqueReasoning = value => record(value) && Object.keys(value).every(key => ['id','encrypted_content','provider_id','model_id'].includes(key)) && ['id','provider_id','model_id'].every(key => typeof value[key] === 'string' && value[key].length > 0 && value[key].length <= 512) && value.id.length <= 256 && typeof value.encrypted_content === 'string' && value.encrypted_content.length > 0 && value.encrypted_content.length <= 1024 * 1024;
+function textContent(content, {provider, model, native, origin, originModel, role}) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) fail('Invalid message content');
   const blocks = [];
@@ -275,6 +277,13 @@ function textContent(content, {provider, model, native, origin, role}) {
         blocks.push({type:b.type,source:{type:'base64',media_type:b.source.media_type,data:b.source.data}});
       } else fail('Unsupported attachment source; remote URLs are not forwarded');
     } else if (['thinking','redacted_thinking','server_tool_use','web_search_tool_result','web_fetch_tool_result','tool_use','tool_result'].includes(b.type)) {
+      if (b.type === 'thinking' && b.opaqueReasoning !== undefined) {
+        if (role !== 'assistant' || typeof b.thinking !== 'string' || !isOpaqueReasoning(b.opaqueReasoning)) fail('Invalid opaque reasoning history');
+        const opaque = b.opaqueReasoning;
+        if (!native && model.openaiProtocol === 'responses' && provider.id && origin === provider.id && originModel === model.id && opaque.provider_id === provider.id && opaque.model_id === model.id) {
+          blocks.push({type:'reasoning',id:opaque.id,encrypted_content:opaque.encrypted_content});
+        }
+      }
       // Never send provider signatures to another provider. DeepSeek signed URL
       // history is only reusable with explicit provenance attached by the caller.
       if (native && provider.type === 'deepseek' && provider.id && (b.provider_id ?? origin) === provider.id && ['server_tool_use','web_search_tool_result','web_fetch_tool_result'].includes(b.type)) {
@@ -327,7 +336,7 @@ function prepareChat(provider, model, body) {
   const messages = body.messages.map(m => {
     if (!record(m) || !['user','assistant','latest_reminder'].includes(m.role)) fail('Unsupported message role');
     return {role:m.role === 'latest_reminder' && provider.type !== 'deepseek' ? 'user' : m.role,
-      content:textContent(m.content, {provider,model,native,origin:m.provider_id,role:m.role})};
+      content:textContent(m.content, {provider,model,native,origin:m.provider_id,originModel:m.model_id,role:m.role})};
   }).filter(m => m.content.length);
   if (!messages.length) fail('At least one text or attachment message is required');
   const system = typeof body.system === 'string' ? body.system : Array.isArray(body.system) ? body.system.filter(b => b.type === 'text').map(b => b.text).join('\n') : '';
@@ -338,11 +347,16 @@ function prepareChat(provider, model, body) {
   const maxTokens = Math.min(requested, maximum);
   if (provider.type === 'openai') {
     if (responses) {
-      const input = messages.map(message => ({role:message.role,content:(typeof message.content === 'string' ? [{type:'text',text:message.content}] : message.content).map(block => {
-        if (block.type === 'text') return {type:message.role === 'assistant' ? 'output_text' : 'input_text',text:block.text};
-        if (block.type === 'image_url' && message.role === 'user') return {type:'input_image',image_url:block.image_url.url,detail:'auto'};
-        fail('Responses only supports user images and text conversation history');
-      })}));
+      const input = messages.flatMap(message => {
+        const blocks = typeof message.content === 'string' ? [{type:'text',text:message.content}] : message.content;
+        const reasoning = blocks.filter(block => block.type === 'reasoning');
+        const content = blocks.filter(block => block.type !== 'reasoning').map(block => {
+          if (block.type === 'text') return {type:message.role === 'assistant' ? 'output_text' : 'input_text',text:block.text};
+          if (block.type === 'image_url' && message.role === 'user') return {type:'input_image',image_url:block.image_url.url,detail:'auto'};
+          fail('Responses only supports user images and text conversation history');
+        });
+        return [...reasoning, ...(content.length ? [{role:message.role,content}] : [])];
+      });
       return {model:model.id,input,stream:true,store:false,max_output_tokens:maxTokens,...(tools.length ? {tools:[{type:'web_search'}],include:['web_search_call.action.sources']} : {}),...(system ? {instructions:system} : {}),...(thinking ? {reasoning:{...(effort !== undefined ? {effort} : {}),summary:'auto'}} : {})};
     }
     return {model:model.id,messages:[...(system ? [{role:'system',content:system}] : []),...messages],stream:true,stream_options:{include_usage:true},max_completion_tokens:maxTokens,...(effort !== undefined ? {reasoning_effort:effort} : {})};
@@ -385,7 +399,7 @@ export async function discoverModels(provider, {signal} = {}) {
 
 async function* streamResponses(response, provider, model, signal, searchEnabled = false) {
   let started=false, createdSeen=false, completed=false, id, responseId, usage, blockType, blockKey, index=-1, reason='end_turn', sequence=-1;
-  const items=new Map(), itemIndexes=new Map(), fragments=new Map(), parts=new Set(), textIndexes=new Map();
+  const items=new Map(), itemIndexes=new Map(), fragments=new Map(), parts=new Set(), textIndexes=new Map(), opaqueItems=new Map();
   const search=responsesSearch(provider,searchEnabled,message=>{throw new AdapterError(message);});
   const citations=responsesCitations(searchEnabled,search,key=>fragments.get(key),message=>{throw new AdapterError(message);});
   const searchEvents=['response.web_search_call.in_progress','response.web_search_call.searching','response.web_search_call.completed'];
@@ -440,6 +454,11 @@ async function* streamResponses(response, provider, model, signal, searchEnabled
         else if(part.annotations!==undefined) bad('Unsupported Responses refusal annotations');
       });
     } else {
+      const encrypted = item.encrypted_content;
+      const previousOpaque = opaqueItems.get(outputIndex);
+      if (encrypted != null && (typeof encrypted !== 'string' || !encrypted.length || encrypted.length > 1024 * 1024)) bad('Invalid Responses encrypted reasoning');
+      if (previousOpaque && ((encrypted != null && encrypted !== previousOpaque.encrypted_content) || (final && encrypted == null))) bad('Responses encrypted reasoning changed or disappeared');
+      if (encrypted != null) opaqueItems.set(outputIndex,{id:item.id,encrypted_content:encrypted});
       if(item.summary!==undefined && !Array.isArray(item.summary)) bad('Invalid Responses reasoning summary');
       for(const [n,part] of (item.summary ?? []).entries()) {
         if(!record(part) || part.type!=='summary_text') bad('Invalid Responses reasoning summary');
@@ -605,6 +624,11 @@ async function* streamResponses(response, provider, model, signal, searchEnabled
   }
   if(!completed) bad('Responses stream interrupted before completion');
   if(blockType) yield {type:'content_block_stop',index};
+  if (provider.id && reason !== 'refusal') for (const [,opaque] of [...opaqueItems].sort((a,b)=>a[0]-b[0])) {
+    index++;
+    yield {type:'content_block_start',index,content_block:{type:'thinking',thinking:'',signature:'',opaqueReasoning:{...opaque,provider_id:provider.id,model_id:model.id}}};
+    yield {type:'content_block_stop',index};
+  }
   yield {type:'message_delta',delta:{stop_reason:reason,stop_sequence:null},...(usage ? {usage} : {})};
   yield {type:'message_stop'};
 }

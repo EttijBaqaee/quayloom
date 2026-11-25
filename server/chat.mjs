@@ -3,6 +3,7 @@ import { fail, validateChat } from './validation.mjs'
 import { allowsModel } from './access.mjs'
 import { performance } from 'node:perf_hooks'
 import { createRunStatistics, interruptedStatistics } from './statistics.mjs'
+import { isOpaqueReasoning } from './adapters.mjs'
 
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value)
 const summary = ({ id, title, createdAt, updatedAt, revision }) => ({ id, title, createdAt, updatedAt, revision })
@@ -17,7 +18,10 @@ export function validateSession(value) {
       for (const file of message.files) if (!file || !validId(file.id) || typeof file.name !== 'string' || !Number.isSafeInteger(file.size) || file.size < 0 || typeof file.isImage !== 'boolean' || typeof file.mimeType !== 'string' || file.serverId !== null && typeof file.serverId !== 'string') fail(400, 'Invalid attachment')
     } else if (message.role === 'assistant') {
       if (!Array.isArray(message.blocks) || !['pending', 'streaming', 'done', 'stopped', 'error'].includes(message.status)) fail(400, 'Invalid assistant message')
-      for (const block of message.blocks) if (!block || typeof block.type !== 'string' || block.type === 'text' && typeof block.text !== 'string' || block.type === 'thinking' && typeof block.thinking !== 'string') fail(400, 'Invalid reply block')
+      for (const block of message.blocks) {
+        if (!block || typeof block.type !== 'string' || block.type === 'text' && typeof block.text !== 'string' || block.type === 'thinking' && typeof block.thinking !== 'string') fail(400, 'Invalid reply block')
+        if (block.opaqueReasoning !== undefined && (block.type !== 'thinking' || !isOpaqueReasoning(block.opaqueReasoning) || block.opaqueReasoning.provider_id !== message.providerId || block.opaqueReasoning.model_id !== message.model)) fail(400, 'Invalid opaque reasoning provenance')
+      }
     } else fail(400, 'Invalid message role')
   }
   for (const message of value.messages) for (const key of ['parentId', 'selectedChildId']) if (message[key] != null && !ids.has(message[key])) fail(400, 'Invalid message branch')
@@ -189,7 +193,7 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
     if (principal.role === 'user' && !access) fail(401, '使用码已过期或已禁用')
     if (access) {
       if (!allowsModel(access, provider.id, model.id)) fail(403, '此使用码未获准使用该模型')
-      const textOnly = content => typeof content === 'string' || (Array.isArray(content) && content.every(b => b && (b.type === 'text' && typeof b.text === 'string' || b.type === 'thinking' && typeof b.thinking === 'string')))
+      const textOnly = content => typeof content === 'string' || (Array.isArray(content) && content.every(b => b && (b.type === 'text' && typeof b.text === 'string' || b.type === 'thinking' && typeof b.thinking === 'string' && (b.opaqueReasoning === undefined || isOpaqueReasoning(b.opaqueReasoning)))))
       if (body.messages.some(m => !textOnly(m.content)) || body.system !== undefined && !textOnly(body.system) || body.tools?.length || body.tool_choice || session.messages.some(m => m.role === 'user' && m.files.length)) fail(403, '使用码当前仅支持文本与推理聊天')
     }
     body = images?.resolve(principal.id, provider, body) ?? body

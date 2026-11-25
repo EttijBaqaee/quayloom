@@ -1,4 +1,4 @@
-# Quayloom · 0.3.7
+# Quayloom · 0.3.8
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md) ![License](https://img.shields.io/badge/license-AGPL--3.0--only-green) ![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)
 
@@ -15,10 +15,18 @@ Quayloom 是一款可自部署的多供应商 AI 聊天工作台，基于官方 
 
 **快速导航**
 
-- **了解项目**：[更新说明](#release-037) · [功能](#features) · [协议与供应商](#providers)
+- **了解项目**：[更新说明](#release-038) · [功能](#features) · [协议与供应商](#providers)
 - **部署**：[Docker / 1Panel](#docker) · [源码启动](#development) · [详细部署说明](docs/DEPLOYMENT.md)
 - **使用**：[使用码说明](docs/ACCESS_CODES.md) · [会话与费用](#sessions) · [统计指标](#statistics) · [Android](#android)
 - **维护与条款**：[数据和备份](#backup) · [常见问题](#faq) · [许可与来源](#license) · [隐私说明](#privacy) · [免责声明](#disclaimer)
+
+<a id="release-038"></a>
+
+## 0.3.8 更新说明
+
+- 新增 **Grok（xAI）** 供应商快速预设，默认官方地址 `https://api.x.ai/v1`。
+- 可在服务器获取账号可用模型或手动填写模型 ID；官方 xAI 地址新增的模型默认使用 Responses，已有模型协议保持不变。
+- 继续使用服务端加密密钥、持久任务和渠道配额；不自动启用搜索或其他模型能力。现有 Android 客户端可直接使用，无需升级。
 
 <a id="release-037"></a>
 
@@ -46,7 +54,7 @@ Quayloom 是一款可自部署的多供应商 AI 聊天工作台，基于官方 
 - 登录页、聊天页和管理后台均可切换中文 / English；手机聊天入口位于右上角工作台菜单。界面语言首次按浏览器语言选择，不翻译用户内容或供应商、模型名称。
 - 浅色 / 深色 / 跟随浏览器三种主题，默认跟随浏览器并实时响应系统变化；语言和主题在当前浏览器持久保存、跨同源标签页同步，不随退出登录清除。
 - 管理员管理供应商、Base URL、API Key、模型、能力和默认模型；供应商与模型在输入框底部选择。
-- 支持 OpenAI Chat Completions 兼容、Anthropic Messages、DeepSeek 原生扩展；提供 DeepSeek、OpenAI、Anthropic、OpenRouter、Ollama 和自定义预设。
+- 支持 OpenAI Chat Completions 兼容、Anthropic Messages、DeepSeek 原生扩展；提供 DeepSeek、OpenAI、Grok（xAI）、Anthropic、OpenRouter、Ollama 和自定义预设。
 - 独立使用码登录，管理员配置到期、获准渠道和模型；登录输入静默清理首尾空白，不改变中间字符。
 - 管理员在每个供应商的“渠道并发与配额”设置渠道并发上限（1–32，默认 4），管理员和所有使用码共享；达到上限时拒绝新请求，不排队、不重发，降低上限不停止已运行任务。
 - 按 **使用码 × 渠道** 独立限制请求数、每日/累计聊天 Token 和并发，并受渠道总上限保护。
@@ -83,13 +91,13 @@ pnpm start
 
 ### GHCR 预构建镜像
 
-镜像：`ghcr.io/ettijbaqaee/quayloom:0.3.7`，滚动标签：`latest`，平台：`linux/amd64`。可在 1Panel 拉取镜像后按以下编排部署，或保存为独立编排文件：
+镜像：`ghcr.io/ettijbaqaee/quayloom:0.3.8`，滚动标签：`latest`，平台：`linux/amd64`。可在 1Panel 拉取镜像后按以下编排部署，或保存为独立编排文件：
 
 ```yaml
 name: quayloom
 services:
   quayloom:
-    image: ghcr.io/ettijbaqaee/quayloom:0.3.7
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.8
     pull_policy: always
     init: true
     restart: unless-stopped
@@ -187,6 +195,8 @@ docker compose logs quayloom
 3. 可发现模型后选择加入，或手动填写真实模型 ID；能力开关需按服务商实际支持设置。
 4. “连接测试”仅验证模型列表接口与鉴权，不保证推理、文件、语音或搜索可用。
 5. 设置默认模型，返回聊天页选择供应商和模型。
+
+**Grok（xAI）**：选择同名快速预设，填写 xAI API Key，使用官方 Base URL `https://api.x.ai/v1`；“获取模型”由服务器请求 `/v1/models`，不会发起聊天生成。模型 ID 以账号实际返回结果为准，也可手动填写。官方 xAI 地址新增的模型默认使用 [Responses](https://docs.x.ai/developers/model-capabilities/text/comparison)，可在每个模型卡片明确修改协议；已有模型不会被自动切换。深度思考、联网搜索及图片等能力仍须按实际模型支持手动配置，默认不启用。
 
 Ollama 等内网模型仅在确有需要时启用“允许私网”。容器内的 `127.0.0.1` 指容器本身。元数据、链路本地等危险目标始终被拒绝；DNS 校验结果固定到实际连接，禁止重定向。
 

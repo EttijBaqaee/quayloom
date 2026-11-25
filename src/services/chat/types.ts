@@ -2,6 +2,7 @@ import type { TranslationMessage } from '../../i18n/index.js'
 import type { ApiErrorKind } from '../api/client.js'
 import type {
   ChatModel,
+  OpaqueReasoning,
   MessageUsage,
   ServerToolBlock,
   StopDetails,
@@ -44,11 +45,13 @@ export type UserMessage = MessageBranch & {
   createdAt: number
 }
 
-/** 思考块：thinking_delta 累积，签名随 signature_delta 到达；历史轮次的思考服务端会丢弃，不回传 */
+/** 可见思考不作为历史回传；opaqueReasoning 是独立的同源上下文，不参与展示。 */
 export type ThinkingPart = {
   type: 'thinking'
   thinking: string
   signature?: string
+  /** 非可见上下文；同渠道同模型才可回传。 */
+  opaqueReasoning?: OpaqueReasoning
   /** content_block_start 的时间；没有事件时间的历史块缺省 */
   startedAt?: number
   /** content_block_stop（或回复结束）的时间 */

@@ -31,8 +31,11 @@ export type TextCitation = {
 /** 文本块：挂过引用的块之后，后续正文另起新块；同一块内引用按 url 去重 */
 export type TextBlock = { type: 'text'; text: string; citations?: TextCitation[] }
 
-/** 思考块：签名在块结束前经 signature_delta 下发，值为本次响应的消息 id */
-export type ThinkingBlock = { type: 'thinking'; thinking: string; signature: string }
+/** Responses 的不透明上下文，只用于同渠道同模型回传；不可作为可见思考。 */
+export type OpaqueReasoning = { id: string; encrypted_content: string; provider_id: string; model_id: string }
+
+/** 思考块；opaqueReasoning 是内部元数据，不渲染、不直接透传。 */
+export type ThinkingBlock = { type: 'thinking'; thinking: string; signature: string; opaqueReasoning?: OpaqueReasoning }
 
 /** 服务端识别调用所属联网能力用的 kind，区分文字搜索、图搜及边想边搜。 */
 export type ServerToolKind =
@@ -166,7 +169,7 @@ export type MessageParam =
   /** Chat Engine 扩展角色，位于对应 user 前；需服务端支持 latest_reminder。 */
   | { role: 'latest_reminder'; content: string }
   | { role: 'user'; content: string | (FileBlockParam | TextBlockParam)[] }
-  | { role: 'assistant'; content: AssistantBlockParam[]; provider_id?: string }
+  | { role: 'assistant'; content: AssistantBlockParam[]; provider_id?: string; model_id?: string }
 
 /** 开启联网搜索与边想边搜 */
 export type DeepseekWebSearchTool = {

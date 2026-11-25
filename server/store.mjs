@@ -9,6 +9,7 @@ const model = (id, name, caps = {}) => ({ id, name, capabilities: capabilities(c
 export const PRESETS = [
   { id: 'deepseek', name: 'DeepSeek', type: 'deepseek', baseUrl: 'https://api.deepseek.com', models: [model('deepseek-flash', 'DeepSeek Flash', { thinking: true, search: true, files: true, vision: true, speech: true }), model('deepseek-v4-pro', 'DeepSeek V4 Pro', { thinking: true, search: true, files: true, vision: true, speech: true })] },
   { id: 'openai', name: 'OpenAI', type: 'openai', baseUrl: 'https://api.openai.com/v1', models: [] },
+  { id: 'xai', name: 'Grok (xAI)', type: 'openai', baseUrl: 'https://api.x.ai/v1', models: [] },
   { id: 'anthropic', name: 'Anthropic', type: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', models: [] },
   { id: 'openrouter', name: 'OpenRouter', type: 'openai', baseUrl: 'https://openrouter.ai/api/v1', models: [] },
   { id: 'ollama', name: 'Ollama（本机）', type: 'openai', baseUrl: 'http://127.0.0.1:11434/v1', allowPrivateNetwork: true, models: [] },

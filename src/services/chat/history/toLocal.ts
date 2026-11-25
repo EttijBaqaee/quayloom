@@ -116,6 +116,7 @@ const toBlocks = (fragments: Fragment[], messageId: string): ReplyBlock[] => {
           {
             type: 'thinking',
             thinking: item.content,
+            ...(item.opaque_reasoning ? { opaqueReasoning: item.opaque_reasoning } : {}),
             ...(item.elapsed_secs === null ? {} : { elapsedSeconds: item.elapsed_secs }),
           },
         ]
@@ -210,13 +211,19 @@ const replyStatus: Record<ChatMessage['status'], ReplyStatus> = {
 
 const toAssistant = (message: ChatMessage): AssistantMessage => {
   const id = String(message.id)
-  const blocks = toBlocks(message.fragments, id)
+  let blocks = toBlocks(message.fragments, id)
+  const opaque = blocks.flatMap(block => block.type === 'thinking' && block.opaqueReasoning ? [block.opaqueReasoning] : [])
+  const origin = opaque[0]
+  if (origin && opaque.some(value => value.provider_id !== origin.provider_id || value.model_id !== origin.model_id)) {
+    blocks = blocks.map(block => block.type === 'thinking' ? { ...block, opaqueReasoning: undefined } : block)
+  }
   const refused = message.status === 'CONTENT_FILTER'
   return {
     id,
     role: 'assistant',
     createdAt: time(message.inserted_at),
-    model: null,
+    model: origin?.model_id ?? null,
+    ...(origin ? { providerId: origin.provider_id } : {}),
     thinking: message.thinking_enabled,
     search: message.search_enabled,
     prefix: false,

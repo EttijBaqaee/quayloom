@@ -59,6 +59,7 @@ export const adminMessages: Readonly<Record<string, string>> = {
   ' · 未保存': ' · Unsaved',
   '关闭': 'Close',
   '快速预设': 'Quick preset',
+  'Grok（xAI）使用官方 API Key；新增模型默认采用 Responses，可获取模型列表或手动填写模型 ID。': 'Grok (xAI) uses an official API key. New models default to Responses; fetch the model list or enter model IDs manually.',
   '供应商名称': 'Provider name',
   '例如：我的模型服务': 'e.g. My model service',
   'API 协议': 'API protocol',
