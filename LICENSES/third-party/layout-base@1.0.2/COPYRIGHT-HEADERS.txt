@@ -1,0 +1,20 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- layout-base.js ---
+/**
+ * This class maintains a list of static geometry related utility methods.
+ *
+ *
+ * Copyright: i-Vis Research Group, Bilkent University, 2007 - present
+ */
+
+--- layout-base.js ---
+/**
+ * A classic Quicksort algorithm with Hoare's partition
+ * - Works also on LinkedList objects
+ *
+ * Copyright: i-Vis Research Group, Bilkent University, 2007 - present
+ */
+
+--- layout-base.js ---
+ * Copyright: i-Vis Research Group, Bilkent University, 2007 - present

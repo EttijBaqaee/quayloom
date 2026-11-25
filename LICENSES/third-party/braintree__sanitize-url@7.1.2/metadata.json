@@ -1,0 +1,11 @@
+{
+  "name": "@braintree/sanitize-url",
+  "version": "7.1.2",
+  "license": "MIT",
+  "author": "",
+  "homepage": "https://github.com/braintree/sanitize-url#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/braintree/sanitize-url.git"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "d3-array",
+  "version": "2.12.1",
+  "license": "BSD-3-Clause",
+  "author": {
+    "name": "Mike Bostock",
+    "url": "http://bost.ocks.org/mike"
+  },
+  "homepage": "https://d3js.org/d3-array/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d3/d3-array.git"
+  }
+}

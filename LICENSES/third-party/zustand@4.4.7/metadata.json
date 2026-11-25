@@ -1,0 +1,15 @@
+{
+  "name": "zustand",
+  "version": "4.4.7",
+  "license": "MIT",
+  "author": "Paul Henschel",
+  "contributors": [
+    "Jeremy Holcomb (https://github.com/JeremyRH)",
+    "Daishi Kato (https://github.com/dai-shi)"
+  ],
+  "homepage": "https://github.com/pmndrs/zustand",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pmndrs/zustand.git"
+  }
+}

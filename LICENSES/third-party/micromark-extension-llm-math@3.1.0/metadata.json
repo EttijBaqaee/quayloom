@@ -1,0 +1,10 @@
+{
+  "name": "micromark-extension-llm-math",
+  "version": "3.1.0",
+  "license": "MIT",
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "repository": "ofk/micromark-extension-llm-math"
+}

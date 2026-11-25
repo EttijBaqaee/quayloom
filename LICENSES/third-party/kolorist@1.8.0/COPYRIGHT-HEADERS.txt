@@ -1,0 +1,4 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- dist/cjs/index.js ---
+// which is MIT licensed and copyright by Heather Arthur and Josh Junon

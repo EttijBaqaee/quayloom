@@ -1,0 +1,10 @@
+{
+  "name": "katex",
+  "version": "0.16.22",
+  "license": "MIT",
+  "homepage": "https://katex.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KaTeX/KaTeX.git"
+  }
+}

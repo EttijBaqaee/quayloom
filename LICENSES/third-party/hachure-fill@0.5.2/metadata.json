@@ -1,0 +1,11 @@
+{
+  "name": "hachure-fill",
+  "version": "0.5.2",
+  "license": "MIT",
+  "author": "Preet Shihn",
+  "homepage": "https://github.com/pshihn/hachure-fill#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pshihn/hachure-fill.git"
+  }
+}

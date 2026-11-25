@@ -1,0 +1,4 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- dist/d3-path.js ---
+// https://d3js.org/d3-path/ v1.0.9 Copyright 2019 Mike Bostock

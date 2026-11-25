@@ -1,0 +1,114 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- cjs/use-sync-external-store-shim.development.js ---
+/**
+ * @license React
+ * use-sync-external-store-shim.development.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store-shim.development.js ---
+ * Copyright (c) Facebook, Inc. and its affiliates.
+
+--- cjs/use-sync-external-store-shim.native.development.js ---
+/**
+ * @license React
+ * use-sync-external-store-shim.native.development.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store-shim.native.production.min.js ---
+/**
+ * @license React
+ * use-sync-external-store-shim.native.production.min.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store-shim.production.min.js ---
+/**
+ * @license React
+ * use-sync-external-store-shim.production.min.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store-with-selector.development.js ---
+/**
+ * @license React
+ * use-sync-external-store-with-selector.development.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store-with-selector.production.min.js ---
+/**
+ * @license React
+ * use-sync-external-store-with-selector.production.min.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store.development.js ---
+/**
+ * @license React
+ * use-sync-external-store.development.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store.production.min.js ---
+/**
+ * @license React
+ * use-sync-external-store.production.min.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store-shim/with-selector.development.js ---
+/**
+ * @license React
+ * use-sync-external-store-shim/with-selector.development.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+--- cjs/use-sync-external-store-shim/with-selector.production.min.js ---
+/**
+ * @license React
+ * use-sync-external-store-shim/with-selector.production.min.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */

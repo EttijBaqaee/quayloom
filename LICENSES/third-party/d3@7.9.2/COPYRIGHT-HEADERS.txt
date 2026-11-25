@@ -1,0 +1,37 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- dist/d3.js ---
+// https://d3js.org v7.9.2 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-array/ v3.2.5 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// ISC license, Copyright 2018 Vladimir Agafonkin.
+
+--- dist/d3.js ---
+// https://d3js.org/d3-axis/ v3.0.1 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-dispatch/ v3.0.2 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-selection/ v3.0.1 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-drag/ v3.0.1 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-color/ v3.1.1 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-interpolate/ v3.0.2 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-timer/ v3.0.2 Copyright 2010-2026 Mike Bostock
+
+--- dist/d3.js ---
+// https://d3js.org/d3-ease/ v3.0.2 Copyright 2010-2026 Mike Bostock, 2001 Robert Penner
+
+--- dist/d3.js ---
+// https://d3js.org/d3-transition/ v3.0.2 Copyright 2010-2026 Mike Bostock

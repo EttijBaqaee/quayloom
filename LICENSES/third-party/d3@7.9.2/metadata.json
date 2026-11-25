@@ -1,0 +1,14 @@
+{
+  "name": "d3",
+  "version": "7.9.2",
+  "license": "ISC",
+  "author": {
+    "name": "Mike Bostock",
+    "url": "https://bost.ocks.org/mike"
+  },
+  "homepage": "https://d3js.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d3/d3.git"
+  }
+}

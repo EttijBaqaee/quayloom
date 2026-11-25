@@ -1,0 +1,11 @@
+{
+  "name": "local-pkg",
+  "version": "1.2.1",
+  "license": "MIT",
+  "author": "Anthony Fu <anthonyfu117@hotmail.com>",
+  "homepage": "https://github.com/antfu-collective/local-pkg#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antfu-collective/local-pkg.git"
+  }
+}

@@ -1,0 +1,37 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- LICENSE.txt ---
+      "Licensor" shall mean the copyright owner or entity authorized by
+
+--- LICENSE.txt ---
+      the copyright owner that is granting the License.
+
+--- LICENSE.txt ---
+      copyright notice that is included in or attached to the work
+
+--- LICENSE.txt ---
+      submitted to Licensor for inclusion in the Work by the copyright owner
+
+--- LICENSE.txt ---
+      the copyright owner. For the purposes of this definition, "submitted"
+
+--- LICENSE.txt ---
+      designated in writing by the copyright owner as "Not a Contribution."
+
+--- LICENSE.txt ---
+   2. Grant of Copyright License. Subject to the terms and conditions of
+
+--- LICENSE.txt ---
+      copyright license to reproduce, prepare Derivative Works of,
+
+--- LICENSE.txt ---
+          that You distribute, all copyright, patent, trademark, and
+
+--- LICENSE.txt ---
+      You may add Your own copyright statement to Your modifications and
+
+--- LICENSE.txt ---
+      same "printed page" as the copyright notice for easier
+
+--- LICENSE.txt ---
+   Copyright [yyyy] [name of copyright owner]

@@ -1,0 +1,14 @@
+{
+  "name": "d3-scale",
+  "version": "4.0.3",
+  "license": "ISC",
+  "author": {
+    "name": "Mike Bostock",
+    "url": "https://bost.ocks.org/mike"
+  },
+  "homepage": "https://d3js.org/d3-scale/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d3/d3-scale.git"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@types/d3-contour",
+  "version": "3.0.6",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Tom Wanzek",
+      "githubUsername": "tomwanzek",
+      "url": "https://github.com/tomwanzek"
+    },
+    {
+      "name": "Hugues Stefanski",
+      "githubUsername": "Ledragon",
+      "url": "https://github.com/Ledragon"
+    },
+    {
+      "name": "Nathan Bierema",
+      "githubUsername": "Methuselah96",
+      "url": "https://github.com/Methuselah96"
+    }
+  ],
+  "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-contour",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+    "directory": "types/d3-contour"
+  }
+}

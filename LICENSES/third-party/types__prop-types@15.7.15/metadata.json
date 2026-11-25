@@ -1,0 +1,28 @@
+{
+  "name": "@types/prop-types",
+  "version": "15.7.15",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "DovydasNavickas",
+      "githubUsername": "DovydasNavickas",
+      "url": "https://github.com/DovydasNavickas"
+    },
+    {
+      "name": "Ferdy Budhidharma",
+      "githubUsername": "ferdaber",
+      "url": "https://github.com/ferdaber"
+    },
+    {
+      "name": "Sebastian Silbermann",
+      "githubUsername": "eps1lon",
+      "url": "https://github.com/eps1lon"
+    }
+  ],
+  "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/prop-types",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+    "directory": "types/prop-types"
+  }
+}

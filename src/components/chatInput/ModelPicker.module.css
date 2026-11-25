@@ -1,0 +1,63 @@
+.picker {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  cursor: default;
+}
+
+.picker label {
+  flex: 1;
+  min-width: 0;
+}
+
+.picker label:last-child {
+  flex: 1.35;
+}
+
+.picker select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 22px 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  color-scheme: light;
+}
+
+:global([data-ds-dark-theme]) .picker select {
+  color-scheme: dark;
+}
+
+.picker select:hover:not(:disabled) {
+  border-color: var(--dsw-alias-brand-text);
+}
+
+.picker select:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-text);
+  outline-offset: 2px;
+}
+
+.picker select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@container chat-input (max-width: 380px) {
+  .picker {
+    gap: 2px;
+  }
+
+  .picker select {
+    padding-left: 4px;
+  }
+}

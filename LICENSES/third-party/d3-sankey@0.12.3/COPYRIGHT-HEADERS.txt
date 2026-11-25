@@ -1,0 +1,4 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- dist/d3-sankey.js ---
+// https://github.com/d3/d3-sankey v0.12.3 Copyright 2019 Mike Bostock

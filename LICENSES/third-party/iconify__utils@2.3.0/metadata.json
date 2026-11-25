@@ -1,0 +1,12 @@
+{
+  "name": "@iconify/utils",
+  "version": "2.3.0",
+  "license": "MIT",
+  "author": "Vjacheslav Trushkin",
+  "homepage": "https://iconify.design/docs/libraries/utils/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iconify/iconify.git",
+    "directory": "packages/utils"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "@types/d3-scale-chromatic",
+  "version": "3.1.0",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Hugues Stefanski",
+      "githubUsername": "Ledragon",
+      "url": "https://github.com/Ledragon"
+    },
+    {
+      "name": "Alex Ford",
+      "githubUsername": "gustavderdrache",
+      "url": "https://github.com/gustavderdrache"
+    },
+    {
+      "name": "Boris Yankov",
+      "githubUsername": "borisyankov",
+      "url": "https://github.com/borisyankov"
+    },
+    {
+      "name": "Henrique Machado",
+      "githubUsername": "henriquefm",
+      "url": "https://github.com/henriquefm"
+    },
+    {
+      "name": "Nathan Bierema",
+      "githubUsername": "Methuselah96",
+      "url": "https://github.com/Methuselah96"
+    }
+  ],
+  "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-scale-chromatic",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+    "directory": "types/d3-scale-chromatic"
+  }
+}

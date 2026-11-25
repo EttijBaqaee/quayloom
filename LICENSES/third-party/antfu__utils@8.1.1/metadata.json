@@ -1,0 +1,11 @@
+{
+  "name": "@antfu/utils",
+  "version": "8.1.1",
+  "license": "MIT",
+  "author": "Anthony Fu <anthonyfu117@hotmail.com>",
+  "homepage": "https://github.com/antfu/utils#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antfu/utils.git"
+  }
+}

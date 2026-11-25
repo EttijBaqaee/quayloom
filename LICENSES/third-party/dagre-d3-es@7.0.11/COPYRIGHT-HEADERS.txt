@@ -1,0 +1,19 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- LICENSE.md ---
+Original dagre-d3 copyright: Copyright (c) 2013 Chris Pettitt
+
+--- LICENSE.md ---
+Original dagre copyright: Copyright (c) 2012-2014 Chris Pettitt
+
+--- LICENSE.md ---
+Original graphlib copyright: Copyright (c) 2012-2014 Chris Pettitt
+
+--- LICENSE.md ---
+Copyright (c) 2022-2024 Thibaut Lassalle, David Newell, Alois Klink, Sidharth Vinod and dagre-es contributors
+
+--- LICENSE.md ---
+The above copyright notice and this permission notice shall be included in
+
+--- LICENSE.md ---
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER

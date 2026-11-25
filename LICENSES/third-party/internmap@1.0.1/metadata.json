@@ -1,0 +1,14 @@
+{
+  "name": "internmap",
+  "version": "1.0.1",
+  "license": "ISC",
+  "author": {
+    "name": "Mike Bostock",
+    "url": "https://bost.ocks.org/mike"
+  },
+  "homepage": "https://github.com/mbostock/internmap/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbostock/internmap.git"
+  }
+}

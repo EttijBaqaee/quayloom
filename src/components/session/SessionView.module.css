@@ -1,0 +1,136 @@
+.view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.statisticsPanel {
+  display: block;
+  overflow: auto;
+  padding: 0 18px max(12px, env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+
+.viewTabs {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-left: auto;
+  padding: 3px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-skeleton);
+}
+
+.viewTabs button {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.viewTabs button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.viewTabs button[aria-selected='true'] {
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: 0 1px 4px rgb(22 34 51 / 8%);
+  font-weight: 600;
+}
+
+.viewTabs button:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-text);
+  outline-offset: 2px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 16px;
+  min-width: 0;
+  height: 64px;
+  padding: 8px 24px;
+  box-sizing: border-box;
+  background: var(--dsw-alias-bg-base);
+}
+
+.title {
+  min-width: 0;
+  max-width: 480px;
+  padding: 8px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.withCollapsedSider {
+  margin-left: 113px;
+}
+
+.inputContainer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  width: calc(var(--message-list-max-width) - 64px);
+  max-width: calc(100% - 32px);
+  min-width: 0;
+  margin: auto auto 0;
+  padding-top: 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--dsw-alias-bg-base) 24px);
+}
+
+@media (max-width: 767px) {
+  .viewTabs {
+    padding: 2px;
+  }
+
+  .viewTabs button {
+    min-height: 30px;
+    padding: 4px 9px;
+  }
+
+  .inputContainer {
+    position: relative;
+    bottom: auto;
+    flex-shrink: 0;
+    width: calc(100% - 24px);
+    max-width: calc(100% - max(24px, env(safe-area-inset-left) + env(safe-area-inset-right)));
+    margin: 0 auto;
+    padding-top: 4px;
+  }
+
+  .statisticsPanel {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}

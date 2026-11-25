@@ -1,0 +1,30 @@
+# Build/import this project using your orchestration manager (for example 1Panel).
+# Set PUBLIC_ORIGIN to the exact browser-visible origin before creation.
+services:
+  quayloom:
+    build:
+      context: .
+      args:
+        APP_BASE_PATH: "${BASE_PATH:-}"
+    image: quayloom:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3210:3210"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3210"
+      BASE_PATH: "${BASE_PATH:-}"
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+      QUOTA_TIME_ZONE: "${QUOTA_TIME_ZONE:-Asia/Shanghai}"
+      NODE_OPTIONS: "--max-old-space-size=512"
+    volumes:
+      - quayloom-data:/app/data
+    mem_limit: 768m
+    cpus: 1.5
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  quayloom-data:

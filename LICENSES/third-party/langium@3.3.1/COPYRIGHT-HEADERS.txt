@@ -1,0 +1,271 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- lib/default-module.d.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- lib/default-module.d.ts ---
+ * Copyright 2021 TypeFox GmbH
+
+--- lib/dependency-injection.d.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- lib/index.d.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium
+ */
+
+--- lib/documentation/comment-provider.d.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- lib/documentation/comment-provider.d.ts ---
+ * Copyright 2023 TypeFox GmbH
+
+--- lib/generate/index.d.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/generate
+ */
+
+--- lib/generate/template-node.d.ts ---
+/******************************************************************************
+ * Copyright 2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- lib/generate/template-node.d.ts ---
+ * Copyright 2022 TypeFox GmbH
+
+--- lib/grammar/index.d.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/grammar
+ */
+
+--- lib/grammar/internal-grammar-util.d.ts ---
+/******************************************************************************
+ * Copyright 2021-2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- lib/grammar/internal-grammar-util.d.ts ---
+ * Copyright 2021-2022 TypeFox GmbH
+
+--- lib/grammar/references/grammar-naming.d.ts ---
+/******************************************************************************
+* Copyright 2022 TypeFox GmbH
+* This program and the accompanying materials are made available under the
+* terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- lib/grammar/references/grammar-naming.d.ts ---
+* Copyright 2022 TypeFox GmbH
+
+--- lib/grammar/references/grammar-references.d.ts ---
+/******************************************************************************
+* Copyright 2021 TypeFox GmbH
+* This program and the accompanying materials are made available under the
+* terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- lib/grammar/references/grammar-references.d.ts ---
+* Copyright 2021 TypeFox GmbH
+
+--- lib/lsp/default-lsp-module.d.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- lib/lsp/index.d.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/lsp
+ */
+
+--- lib/lsp/normalized-text-documents.d.ts ---
+/******************************************************************************
+ * Copyright 2024 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- lib/lsp/normalized-text-documents.d.ts ---
+ * Copyright 2024 TypeFox GmbH
+
+--- lib/lsp/normalized-text-documents.js ---
+/* --------------------------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See License.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+
+--- lib/lsp/normalized-text-documents.js ---
+ * Copyright (c) Microsoft Corporation. All rights reserved.
+
+--- lib/node/index.d.ts ---
+/******************************************************************************
+ * Copyright 2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/node
+ */
+
+--- lib/test/index.d.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/test
+ */
+
+--- src/default-module.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- src/dependency-injection.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- src/index.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium
+ */
+
+--- src/documentation/comment-provider.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- src/generate/index.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/generate
+ */
+
+--- src/generate/template-node.ts ---
+/******************************************************************************
+ * Copyright 2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- src/grammar/index.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/grammar
+ */
+
+--- src/grammar/internal-grammar-util.ts ---
+/******************************************************************************
+ * Copyright 2021-2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- src/grammar/references/grammar-naming.ts ---
+/******************************************************************************
+* Copyright 2022 TypeFox GmbH
+* This program and the accompanying materials are made available under the
+* terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- src/grammar/references/grammar-references.ts ---
+/******************************************************************************
+* Copyright 2021 TypeFox GmbH
+* This program and the accompanying materials are made available under the
+* terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- src/lsp/default-lsp-module.ts ---
+/******************************************************************************
+ * Copyright 2023 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+******************************************************************************/
+
+--- src/lsp/index.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/lsp
+ */
+
+--- src/lsp/normalized-text-documents.ts ---
+/******************************************************************************
+ * Copyright 2024 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- src/lsp/normalized-text-documents.ts ---
+/* --------------------------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See License.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+
+--- src/node/index.ts ---
+/******************************************************************************
+ * Copyright 2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/node
+ */
+
+--- src/test/index.ts ---
+/******************************************************************************
+ * Copyright 2021 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ *
+ * @module langium/test
+ */

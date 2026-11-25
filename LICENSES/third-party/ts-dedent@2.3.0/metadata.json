@@ -1,0 +1,10 @@
+{
+  "name": "ts-dedent",
+  "version": "2.3.0",
+  "license": "MIT",
+  "author": "Tamino Martinius <dev@zaku.eu>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tamino-martinius/node-ts-dedent.git"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@chevrotain/types",
+  "version": "11.0.3",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Shahar Soel"
+  },
+  "homepage": "https://chevrotain.io/documentation/",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Chevrotain/chevrotain.git"
+  }
+}

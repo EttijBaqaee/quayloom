@@ -1,0 +1,13 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- README.md ---
+Copyright (c) 2014-2017 TJ Holowaychuk &lt;tj@vision-media.ca&gt;
+
+--- README.md ---
+Copyright (c) 2018-2021 Josh Junon
+
+--- README.md ---
+The above copyright notice and this permission notice shall be
+
+--- README.md ---
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY

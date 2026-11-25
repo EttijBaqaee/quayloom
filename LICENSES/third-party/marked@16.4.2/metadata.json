@@ -1,0 +1,11 @@
+{
+  "name": "marked",
+  "version": "16.4.2",
+  "license": "MIT",
+  "author": "Christopher Jeffrey",
+  "homepage": "https://marked.js.org",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/markedjs/marked.git"
+  }
+}

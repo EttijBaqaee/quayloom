@@ -1,0 +1,11 @@
+{
+  "name": "unist-util-remove-position",
+  "version": "5.0.0",
+  "license": "MIT",
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+    "Merlijn Vos <merlijn@soverin.net>"
+  ],
+  "repository": "syntax-tree/unist-util-remove-position"
+}

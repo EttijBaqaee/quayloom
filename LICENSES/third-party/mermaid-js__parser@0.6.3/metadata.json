@@ -1,0 +1,16 @@
+{
+  "name": "@mermaid-js/parser",
+  "version": "0.6.3",
+  "license": "MIT",
+  "author": "Yokozuna59",
+  "contributors": [
+    "Yokozuna59",
+    "Sidharth Vinod (https://sidharth.dev)"
+  ],
+  "homepage": "https://github.com/mermaid-js/mermaid/tree/develop/packages/mermaid/parser/#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mermaid-js/mermaid.git",
+    "directory": "packages/parser"
+  }
+}

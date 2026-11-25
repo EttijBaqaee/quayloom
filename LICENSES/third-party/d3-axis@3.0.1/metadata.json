@@ -1,0 +1,14 @@
+{
+  "name": "d3-axis",
+  "version": "3.0.1",
+  "license": "ISC",
+  "author": {
+    "name": "Mike Bostock",
+    "url": "https://bost.ocks.org/mike"
+  },
+  "homepage": "https://d3js.org/d3-axis/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d3/d3-axis.git"
+  }
+}

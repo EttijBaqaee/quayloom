@@ -1,0 +1,28 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- License.txt ---
+Copyright (c) Microsoft Corporation
+
+--- License.txt ---
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+--- License.txt ---
+THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+--- lib/esm/main.js ---
+/* --------------------------------------------------------------------------------------------
+ * Copyright (c) Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See License.txt in the project root for license information.
+ * ------------------------------------------------------------------------------------------ */
+
+--- lib/esm/main.js ---
+ * Copyright (c) Microsoft Corporation. All rights reserved.
+
+--- lib/umd/main.js ---
+/* --------------------------------------------------------------------------------------------
+     * Copyright (c) Microsoft Corporation. All rights reserved.
+     * Licensed under the MIT License. See License.txt in the project root for license information.
+     * ------------------------------------------------------------------------------------------ */
+
+--- lib/umd/main.js ---
+     * Copyright (c) Microsoft Corporation. All rights reserved.

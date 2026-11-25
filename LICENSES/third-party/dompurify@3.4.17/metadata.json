@@ -1,0 +1,11 @@
+{
+  "name": "dompurify",
+  "version": "3.4.17",
+  "license": "(MPL-2.0 OR Apache-2.0)",
+  "author": "Dr.-Ing. Mario Heiderich, Cure53 <mario@cure53.de> (https://cure53.de/)",
+  "homepage": "https://github.com/cure53/DOMPurify",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/cure53/DOMPurify.git"
+  }
+}

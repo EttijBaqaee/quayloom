@@ -1,0 +1,10 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- license.txt ---
+Copyright (c) 2021 - 2022 Vjacheslav Trushkin / Iconify OÜ
+
+--- license.txt ---
+The above copyright notice and this permission notice shall be included in all
+
+--- license.txt ---
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER

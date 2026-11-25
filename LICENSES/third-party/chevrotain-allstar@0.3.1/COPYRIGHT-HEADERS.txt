@@ -1,0 +1,18 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- lib/all-star-lookahead.d.ts ---
+/******************************************************************************
+ * Copyright 2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/
+
+--- lib/all-star-lookahead.d.ts ---
+ * Copyright 2022 TypeFox GmbH
+
+--- src/all-star-lookahead.ts ---
+/******************************************************************************
+ * Copyright 2022 TypeFox GmbH
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License, which is available in the project root.
+ ******************************************************************************/

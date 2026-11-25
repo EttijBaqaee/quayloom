@@ -1,0 +1,4 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- dist/d3-dsv.js ---
+// https://d3js.org/d3-dsv/ v3.0.2 Copyright 2013-2026 Mike Bostock

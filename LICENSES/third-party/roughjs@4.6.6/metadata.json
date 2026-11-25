@@ -1,0 +1,11 @@
+{
+  "name": "roughjs",
+  "version": "4.6.6",
+  "license": "MIT",
+  "author": "Preet Shihn <preetshihn@gmail.com>",
+  "homepage": "https://roughjs.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pshihn/rough.git"
+  }
+}

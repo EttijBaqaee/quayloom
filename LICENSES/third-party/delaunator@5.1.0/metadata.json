@@ -1,0 +1,10 @@
+{
+  "name": "delaunator",
+  "version": "5.1.0",
+  "license": "ISC",
+  "author": "Vladimir Agafonkin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mapbox/delaunator.git"
+  }
+}

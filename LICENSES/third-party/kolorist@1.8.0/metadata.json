@@ -1,0 +1,10 @@
+{
+  "name": "kolorist",
+  "version": "1.8.0",
+  "license": "MIT",
+  "author": "Marvin Hagemeister <hello@marvinh.dev>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marvinhagemeister/kolorist.git"
+  }
+}

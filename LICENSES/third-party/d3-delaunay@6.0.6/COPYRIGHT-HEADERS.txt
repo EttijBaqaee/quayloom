@@ -1,0 +1,4 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- dist/d3-delaunay.js ---
+// https://github.com/d3/d3-delaunay v6.0.6 Copyright 2018-2026 Observable, Inc., 2021 Mapbox

@@ -1,0 +1,10 @@
+{
+  "name": "cytoscape-cose-bilkent",
+  "version": "4.1.0",
+  "license": "MIT",
+  "homepage": "https://github.com/cytoscape/cytoscape.js-cose-bilkent",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cytoscape/cytoscape.js-cose-bilkent.git"
+  }
+}

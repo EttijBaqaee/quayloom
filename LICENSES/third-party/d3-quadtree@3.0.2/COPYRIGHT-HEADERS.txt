@@ -1,0 +1,4 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- dist/d3-quadtree.js ---
+// https://d3js.org/d3-quadtree/ v3.0.2 Copyright 2010-2026 Mike Bostock

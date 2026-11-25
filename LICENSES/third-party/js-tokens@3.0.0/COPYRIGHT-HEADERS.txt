@@ -1,0 +1,4 @@
+Copyright/license comment excerpts copied unchanged from the installed package; these do not replace its complete license files.
+
+--- index.js ---
+// Copyright 2014, 2015, 2016, 2017 Simon Lydell

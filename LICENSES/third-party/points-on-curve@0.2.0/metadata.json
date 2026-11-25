@@ -1,0 +1,11 @@
+{
+  "name": "points-on-curve",
+  "version": "0.2.0",
+  "license": "MIT",
+  "author": "Preet Shihn",
+  "homepage": "https://github.com/pshihn/bezier-points#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pshihn/bezier-points.git"
+  }
+}

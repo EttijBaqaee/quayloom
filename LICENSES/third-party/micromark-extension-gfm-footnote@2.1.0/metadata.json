@@ -1,0 +1,10 @@
+{
+  "name": "micromark-extension-gfm-footnote",
+  "version": "2.1.0",
+  "license": "MIT",
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "repository": "micromark/micromark-extension-gfm-footnote"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "cytoscape-fcose",
+  "version": "2.2.0",
+  "license": "MIT",
+  "author": {
+    "name": "iVis-at-Bilkent"
+  },
+  "homepage": "https://github.com/iVis-at-Bilkent/cytoscape.js-fcose",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iVis-at-Bilkent/cytoscape.js-fcose.git"
+  }
+}

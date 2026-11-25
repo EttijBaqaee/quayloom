@@ -1,0 +1,17 @@
+{
+  "name": "quansync",
+  "version": "0.2.11",
+  "license": "MIT",
+  "author": "Anthony Fu <anthonyfu117@hotmail.com>",
+  "contributors": [
+    {
+      "name": "三咲智子 Kevin Deng",
+      "email": "sxzz@sxzz.moe"
+    }
+  ],
+  "homepage": "https://github.com/quansync-dev/quansync#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quansync-dev/quansync.git"
+  }
+}

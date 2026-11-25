@@ -1,0 +1,10 @@
+{
+  "name": "micromark-factory-space",
+  "version": "2.1.0",
+  "license": "MIT",
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "repository": "https://github.com/micromark/micromark/tree/main/packages/micromark-factory-space"
+}

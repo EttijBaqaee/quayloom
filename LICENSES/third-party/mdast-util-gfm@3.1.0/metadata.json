@@ -1,0 +1,10 @@
+{
+  "name": "mdast-util-gfm",
+  "version": "3.1.0",
+  "license": "MIT",
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "repository": "syntax-tree/mdast-util-gfm"
+}

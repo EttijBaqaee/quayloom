@@ -1,0 +1,15 @@
+{
+  "name": "langium",
+  "version": "3.3.1",
+  "license": "MIT",
+  "author": {
+    "name": "TypeFox",
+    "url": "https://www.typefox.io"
+  },
+  "homepage": "https://langium.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eclipse-langium/langium",
+    "directory": "packages/langium"
+  }
+}

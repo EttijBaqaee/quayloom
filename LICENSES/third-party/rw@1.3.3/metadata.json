@@ -1,0 +1,14 @@
+{
+  "name": "rw",
+  "version": "1.3.3",
+  "license": "BSD-3-Clause",
+  "author": {
+    "name": "Mike Bostock",
+    "url": "http://bost.ocks.org/mike"
+  },
+  "homepage": "https://github.com/mbostock/rw",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/mbostock/rw.git"
+  }
+}

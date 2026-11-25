@@ -1,0 +1,28 @@
+{
+  "name": "@types/d3-fetch",
+  "version": "3.0.7",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Hugues Stefanski",
+      "githubUsername": "ledragon",
+      "url": "https://github.com/ledragon"
+    },
+    {
+      "name": "denisname",
+      "githubUsername": "denisname",
+      "url": "https://github.com/denisname"
+    },
+    {
+      "name": "Nathan Bierema",
+      "githubUsername": "Methuselah96",
+      "url": "https://github.com/Methuselah96"
+    }
+  ],
+  "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-fetch",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+    "directory": "types/d3-fetch"
+  }
+}

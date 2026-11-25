@@ -1,0 +1,38 @@
+{
+  "name": "@types/katex",
+  "version": "0.16.8",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Kevin Nguyen",
+      "githubUsername": "knguyen0125",
+      "url": "https://github.com/knguyen0125"
+    },
+    {
+      "name": "bLue",
+      "githubUsername": "dreamerblue",
+      "url": "https://github.com/dreamerblue"
+    },
+    {
+      "name": "Sebastian Weigand",
+      "githubUsername": "s-weigand",
+      "url": "https://github.com/s-weigand"
+    },
+    {
+      "name": "sapphi-red",
+      "githubUsername": "sapphi-red",
+      "url": "https://github.com/sapphi-red"
+    },
+    {
+      "name": "Stefaans",
+      "githubUsername": "Stefaans",
+      "url": "https://github.com/Stefaans"
+    }
+  ],
+  "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/katex",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+    "directory": "types/katex"
+  }
+}

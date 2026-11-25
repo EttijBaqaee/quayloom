@@ -1,0 +1,11 @@
+{
+  "name": "cose-base",
+  "version": "2.2.0",
+  "license": "MIT",
+  "author": "",
+  "homepage": "https://github.com/iVis-at-Bilkent/cose-base#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iVis-at-Bilkent/cose-base.git"
+  }
+}

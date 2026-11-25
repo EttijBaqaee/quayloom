@@ -1,0 +1,10 @@
+{
+  "name": "idb",
+  "version": "8.0.3",
+  "license": "ISC",
+  "author": "Jake Archibald",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jakearchibald/idb.git"
+  }
+}
