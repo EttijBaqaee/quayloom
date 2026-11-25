@@ -1,0 +1,25 @@
+name: quayloom
+services:
+  quayloom:
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.7
+    pull_policy: always
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PORT:-9810}:${PORT:-9810}"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "${PORT:-9810}"
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+      QUOTA_TIME_ZONE: "${QUOTA_TIME_ZONE:-Asia/Shanghai}"
+      NODE_OPTIONS: "--max-old-space-size=512"
+    volumes:
+      - quayloom-data:/app/data
+    mem_limit: 768m
+    cpus: 1.5
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  quayloom-data:

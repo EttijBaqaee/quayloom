@@ -20,7 +20,7 @@ async function walk(relative) {
     else if (entry.isFile()) await add(name)
   }
 }
-for (const file of ['package.json','pnpm-lock.yaml','.npmrc','rspack.config.ts','tsconfig.json','.oxlintrc.json','.oxfmtrc.json','Dockerfile','compose.yaml','.env.example','.dockerignore','.gitignore','LICENSE','NOTICE.md','README.md','README.en.md','docs/ACCESS_CODES.md','docs/DEPLOYMENT.md','scripts/build.mjs','scripts/package-source.mjs']) await add(file)
+for (const file of ['package.json','pnpm-lock.yaml','.npmrc','rspack.config.ts','tsconfig.json','.oxlintrc.json','.oxfmtrc.json','Dockerfile','compose.yaml','compose.ghcr.yaml','.env.example','.dockerignore','.gitignore','LICENSE','NOTICE.md','README.md','README.en.md','docs/ACCESS_CODES.md','docs/DEPLOYMENT.md','scripts/build.mjs','scripts/package-source.mjs']) await add(file)
 for (const directory of ['src','server','LICENSES','android']) await walk(directory)
 await mkdir(path.dirname(output), { recursive: true })
 const archive = zipSync(files, { level: 6 })

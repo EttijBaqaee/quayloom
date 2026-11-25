@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { createApp } from './app.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const host = process.env.HOST || '127.0.0.1'
-const port = Number(process.env.PORT || 3210)
+const port = Number(process.env.PORT || 9810)
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT')
 const publicOrigin = process.env.PUBLIC_ORIGIN
 if (publicOrigin && (new URL(publicOrigin).origin !== publicOrigin || !/^https?:\/\//.test(publicOrigin))) throw new Error('PUBLIC_ORIGIN must be an exact http(s) origin without a trailing slash')

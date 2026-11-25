@@ -100,13 +100,13 @@ export default defineConfig(createConfig({
   devServer: {
     proxy: [{
       context: ['/api'],
-      target: process.env.STUDIO_BACKEND_URL || 'http://127.0.0.1:3210',
+      target: process.env.STUDIO_BACKEND_URL || 'http://127.0.0.1:9810',
       changeOrigin: true,
       on: { proxyReq: (proxyReq, req) => {
         // Do not erase an untrusted Origin: only this local dev server is allowed.
         const origin = req.headers.origin
         if (origin && ['http://localhost:8090', 'http://127.0.0.1:8090', 'http://[::1]:8090'].includes(origin)) {
-          proxyReq.setHeader('origin', process.env.STUDIO_BACKEND_URL || 'http://127.0.0.1:3210')
+          proxyReq.setHeader('origin', process.env.STUDIO_BACKEND_URL || 'http://127.0.0.1:9810')
         }
       } },
     }],

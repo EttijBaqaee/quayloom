@@ -10,10 +10,10 @@ services:
     init: true
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3210:3210"
+      - "127.0.0.1:9810:9810"
     environment:
       HOST: "0.0.0.0"
-      PORT: "3210"
+      PORT: "9810"
       BASE_PATH: "${BASE_PATH:-}"
       PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env}"
       COOKIE_SECURE: "${COOKIE_SECURE:-true}"

@@ -13,6 +13,7 @@ import { AccessCodesPanel } from './AccessCodesPanel.js'
 import { NotificationsButton } from './Notifications.js'
 import { QuotaEditor, UsagePanel } from './QuotaPanel.js'
 import { UsageAnalytics } from './UsageAnalytics.js'
+import { UpdatePanel } from './UpdatePanel.js'
 
 const fallbackPresets: Preset[] = [
   { id: 'deepseek', name: 'DeepSeek', type: 'deepseek', baseUrl: 'https://api.deepseek.com', models: [newModel('deepseek-flash')] },
@@ -118,6 +119,7 @@ export function AdminPage() {
     <main className="studio-admin-main">
       <div className="studio-page-title"><div><h1>{t('模型管理')}</h1></div><button className="studio-primary" disabled={busy || loading} onClick={() => switchDraft(draftFor(presets[0]))}>{t('＋ 添加供应商')}</button></div>
       {error && <div className="studio-banner studio-error" role="alert">{error}</div>}{notice && <div className="studio-banner studio-success" role="status">{notice}</div>}
+      <UpdatePanel />
       <div className="studio-admin-grid">
         <aside className="studio-provider-list"><div className="studio-section-title">{t('供应商')} <span>{data.providers.length}</span><button disabled={busy} className="studio-quiet" onClick={() => void run(async () => { await reload(); setNotice(t('已刷新配置。')) })}>{t('刷新')}</button></div>
           {loading ? <p role="status">{t('正在加载…')}</p> : !data.providers.length ? <div className="studio-empty">{t('暂无供应商。')}</div> : data.providers.map(p => <article key={p.id} className={`studio-provider-card ${draft?.id === p.id ? 'is-selected' : ''}`}>

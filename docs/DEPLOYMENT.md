@@ -4,7 +4,7 @@
 
 需要 Node.js 24+。构建机使用锁定版本的 pnpm 安装依赖并执行 `type`、`lint` 和 `build`。生产运行文件包括构建后的 `dist/`、`server/`、`package.json`、`LICENSE`、`LICENSES/` 和 `NOTICE.md`；发布时还须保留与运行版本一致的对应源码 ZIP，并配置其受控下载入口。后端没有第三方 npm 运行依赖。不要把源码工作目录或数据目录作为静态目录暴露；公开源码应使用经过筛选、不含凭据的归档。
 
-原生运行默认绑定 `127.0.0.1:3210`。使用反代时保留准确的 Host 和 Origin；`PUBLIC_ORIGIN` 必须是浏览器可见的完整源，例如 `https://chat.example.com`，不带末尾斜杠和路径。HTTP 只能用于可信环境，并设置 `COOKIE_SECURE=false`；公网推荐 HTTPS 和 `COOKIE_SECURE=true`。
+原生运行默认绑定 `127.0.0.1:9810`。使用反代时保留准确的 Host 和 Origin；`PUBLIC_ORIGIN` 必须是浏览器可见的完整源，例如 `https://chat.example.com`，不带末尾斜杠和路径。HTTP 只能用于可信环境，并设置 `COOKIE_SECURE=false`；公网推荐 HTTPS 和 `COOKIE_SECURE=true`。
 
 ## Docker / 1Panel
 
@@ -21,7 +21,7 @@
 ```nginx
 location = /Quayloom { return 308 /Quayloom/; }
 location ^~ /Quayloom/ {
-    proxy_pass http://127.0.0.1:3210;
+    proxy_pass http://127.0.0.1:9810;
     proxy_set_header Host $http_host;
     proxy_http_version 1.1;
     proxy_buffering off;
@@ -62,6 +62,6 @@ location ^~ /Quayloom/ {
 
 Quayloom 自有代码默认按 AGPL-3.0-only 提供，上游 MIT 与其他第三方权利分别保留。完整条款见 [LICENSE](../LICENSE)，上游 MIT 原文见 [MIT-chat-demo.txt](../LICENSES/MIT-chat-demo.txt)，来源与边界见 [NOTICE](../NOTICE.md)。
 
-网络用户通过页面“源码”入口获取运行版本对应源码，API 为 `GET /api/source.zip`；子路径示例为 `/Quayloom/api/source.zip`，支持无登录下载。Docker 与 APK 交付附带匹配的源码归档，Android 还可将内置源码保存到设备。发布前检查 GET/HEAD、反代路径、归档内容及版本一致性，不把示例地址当成已部署事实。不要求现在创建 GitHub 仓库，且不能用未来计划中的仓库代替当前版本的源码提供。
+网络用户通过页面“源码”入口获取运行版本对应源码，API 为 `GET /api/source.zip`；子路径示例为 `/Quayloom/api/source.zip`，支持无登录下载。Docker 与 APK 交付附带匹配的源码归档，Android 还可将内置源码保存到设备。发布前检查 GET/HEAD、反代路径、归档内容及版本一致性，不把示例地址当成已部署事实。GitHub 开发分支不能代替运行版本随附的对应源码归档。
 
 公开范围包含修改、构建、安装与运行所需的应用源码、锁文件、构建配置、许可和使用文档。内部测试验证、截图、报告、日志、生产部署细节、数据、凭据、Android 私有签名和构建产物不在此范围；测试文件仅留工作区，不应删除。私钥不得为满足源码提供要求而公开，Android 接收者可自行构建并使用自己的密钥签名。不提供 GitHub Pages 或自动发布镜像工作流；公开源码不等于已部署服务，也不表示已完成 APK 实机测试。

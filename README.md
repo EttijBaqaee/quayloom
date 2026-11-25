@@ -1,4 +1,4 @@
-# Quayloom · 0.3.6
+# Quayloom · 0.3.7
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md) ![License](https://img.shields.io/badge/license-AGPL--3.0--only-green) ![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)
 
@@ -15,10 +15,19 @@ Quayloom 是一款可自部署的多供应商 AI 聊天工作台，基于官方 
 
 **快速导航**
 
-- **了解项目**：[更新说明](#release-036) · [功能](#features) · [协议与供应商](#providers)
+- **了解项目**：[更新说明](#release-037) · [功能](#features) · [协议与供应商](#providers)
 - **部署**：[Docker / 1Panel](#docker) · [源码启动](#development) · [详细部署说明](docs/DEPLOYMENT.md)
 - **使用**：[使用码说明](docs/ACCESS_CODES.md) · [会话与费用](#sessions) · [统计指标](#statistics) · [Android](#android)
-- **维护与条款**：[数据和备份](#backup) · [常见问题](#faq) · [许可与来源](#license)
+- **维护与条款**：[数据和备份](#backup) · [常见问题](#faq) · [许可与来源](#license) · [隐私说明](#privacy) · [免责声明](#disclaimer)
+
+<a id="release-037"></a>
+
+## 0.3.7 更新说明
+
+- 默认服务端口统一为 **9810**；已显式配置 `PORT` 的部署保持原设置。
+- 发布 GHCR Docker 镜像及 GitHub Releases Android 安装包。
+- 管理员后台增加工作台版本检查：自动检查与手动按钮、稳定版更新提示和发布页入口；不自动升级。
+- Android 0.2.1 新增“记住凭据”：成功登录后使用 AndroidKeyStore 加密保存，按工作台地址和登录方式隔离，后续自动填入但不自动提交；可关闭并清除。
 
 <a id="release-036"></a>
 
@@ -62,7 +71,7 @@ cp .env.example .env
 pnpm start
 ```
 
-默认地址为 `http://127.0.0.1:3210`，管理页为 `/admin`。首次初始化时通过 `ADMIN_PASSWORD` 或 `ADMIN_PASSWORD_FILE` 设置 12–1024 字符的密码；两者不能同时设置。不设置时，服务器会在首次启动终端显示一次随机密码。不要将真实凭据、环境配置或数据目录提交到 Git。
+默认地址为 `http://127.0.0.1:9810`，管理页为 `/admin`。首次初始化时通过 `ADMIN_PASSWORD` 或 `ADMIN_PASSWORD_FILE` 设置 12–1024 字符的密码；两者不能同时设置。不设置时，服务器会在首次启动终端显示一次随机密码。不要将真实凭据、环境配置或数据目录提交到 Git。
 
 开发时分别运行 `pnpm start` 和 `pnpm dev`，访问 `http://localhost:8090`。不能双击 HTML 或仅使用 GitHub Pages 等静态托管运行本项目；生产需要 Node 后端。生产后端无第三方运行依赖。
 
@@ -72,7 +81,60 @@ pnpm start
 
 ## Docker / 1Panel 部署
 
-### Docker Compose
+### GHCR 预构建镜像
+
+镜像：`ghcr.io/ettijbaqaee/quayloom:0.3.7`，滚动标签：`latest`，平台：`linux/amd64`。可在 1Panel 拉取镜像后按以下编排部署，或保存为独立编排文件：
+
+```yaml
+name: quayloom
+services:
+  quayloom:
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.7
+    pull_policy: always
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PORT:-9810}:${PORT:-9810}"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "${PORT:-9810}"
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+      QUOTA_TIME_ZONE: "${QUOTA_TIME_ZONE:-Asia/Shanghai}"
+      NODE_OPTIONS: "--max-old-space-size=512"
+    volumes:
+      - quayloom-data:/app/data
+    mem_limit: 768m
+    cpus: 1.5
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  quayloom-data:
+```
+
+上面是完整编排，与仓库中的 [compose.ghcr.yaml](compose.ghcr.yaml) 一致。在同目录创建 `.env`（不要提交真实配置）：
+
+```dotenv
+PUBLIC_ORIGIN=https://chat.example.com
+PORT=9810
+COOKIE_SECURE=true
+QUOTA_TIME_ZONE=Asia/Shanghai
+```
+
+然后执行，或在 1Panel 中导入完整编排并设置相同环境变量：
+
+```sh
+docker compose -f compose.ghcr.yaml pull
+docker compose -f compose.ghcr.yaml up -d
+docker compose -f compose.ghcr.yaml logs quayloom
+```
+
+升级时先备份数据和主密钥，再修改固定镜像标签并重新 `pull` / `up -d`；保留旧标签以便回滚，不要删除数据卷。镜像内置健康检查；宿主机只绑定回环地址，不会自动对局域网或公网开放。仅本机 HTTP 体验时将 `PUBLIC_ORIGIN` 改为 `http://127.0.0.1:9810`、`COOKIE_SECURE=false`。如果修改 `PORT`，也要同步反向代理的上游端口。
+
+将示例域名改成实际域名，反向代理指向 `127.0.0.1:9810`，首次密码见容器日志。公开镜像的前端按**根路径**构建；部署到 `/Quayloom` 等子路径时，请按下述源码方式传入构建参数，不要只修改运行变量。
+
+### Docker Compose（从源码构建）
 
 需要 Docker Engine 和 Compose v2。在源码根目录复制环境模板：
 
@@ -96,21 +158,21 @@ docker compose logs quayloom
 
 首次启动时在日志中读取一次性生成的管理员密码，访问域名下的 `/admin` 登录。也可在首次初始化前配置 `ADMIN_PASSWORD_FILE`，并在编排中只读挂载密码文件；不要将真实密码写入 Git。数据保存在独立 Docker 卷中，**不要使用 `docker compose down -v` 删除数据卷**。
 
-编排默认仅发布 `127.0.0.1:3210`，需使用 Nginx 等反向代理对外提供服务。仅在服务器本机体验时，可设置 `PUBLIC_ORIGIN=http://127.0.0.1:3210` 和 `COOKIE_SECURE=false`，访问 `http://127.0.0.1:3210`；另一台设备不能通过它自己的 `127.0.0.1` 访问服务器。
+编排默认仅发布 `127.0.0.1:9810`，需使用 Nginx 等反向代理对外提供服务。仅在服务器本机体验时，可设置 `PUBLIC_ORIGIN=http://127.0.0.1:9810` 和 `COOKIE_SECURE=false`，访问 `http://127.0.0.1:9810`；另一台设备不能通过它自己的 `127.0.0.1` 访问服务器。
 
 ### 1Panel
 
 1. 将完整源码放到服务器项目目录，不要只复制编排模板。
 2. 在项目目录准备 `.env`，配置准确的 `PUBLIC_ORIGIN`、Cookie 和可选子路径。
 3. 在 1Panel 的容器编排中导入项目的 `compose.yaml`，确认构建上下文指向完整源码目录；按当前面板版本载入项目环境变量后构建并启动。
-4. 在网站设置中添加反向代理到 `127.0.0.1:3210`，保留 Host 和完整路径；详细参数见[部署说明](docs/DEPLOYMENT.md)。
+4. 在网站设置中添加反向代理到 `127.0.0.1:9810`，保留 Host 和完整路径；详细参数见[部署说明](docs/DEPLOYMENT.md)。
 5. 查看容器健康和首次密码，登录后台添加供应商及模型。
 
 ### 子路径与离线镜像
 
 部署到 `/Quayloom` 时，在 `.env` 设置 `BASE_PATH=/Quayloom`；仓库编排会把它同时传给构建参数 `APP_BASE_PATH` 和运行变量 `BASE_PATH`。`PUBLIC_ORIGIN` 只填写源，例如 `https://chat.example.com`，不含路径。修改子路径后必须重新构建前端。
 
-如已获得离线镜像，可用 `docker load -i <镜像文件.tar.gz>` 导入，再把编排的 `image` 改成实际标签，并移除 `build` 配置。仓库不内置大体积镜像，也不预设已发布的容器 Registry 地址。
+如已获得离线镜像，可用 `docker load -i <镜像文件.tar.gz>` 导入，再把编排的 `image` 改成实际标签，并移除 `build` 配置。仓库源码不内置大体积镜像；预构建镜像通过 GHCR 分发，见上文。
 
 单独构建镜像可用 `docker build -t quayloom:local .`。本项目不启用 GitHub Pages 或自动推送镜像工作流。
 
@@ -177,9 +239,21 @@ OpenAI 兼容图片由管理员上传到服务器，以身份和供应商隔离�
 
 生产建议同源 HTTPS。HTTP 不提供传输保密性；服务端会话正文不是端到端加密。共用浏览器或不可信扩展可能读取本机缓存。
 
+<a id="updates"></a>
+
+## 版本更新检查
+
+管理员登录后台后可查看工作台的当前版本与 GitHub 最新稳定版；进入后台时自动检查一次，也可点击手动检查按钮。有新版本时提供发布页入口，下载安装与容器升级仍由部署者决定，**不会自动下载、安装、重启或执行远程代码**。
+
+检查由服务端请求固定的 `EttijBaqaee/quayloom` GitHub Releases 地址，不携带对话、模型密钥、Cookie 或使用码。成功结果缓存 15 分钟，失败结果短暂缓存 60 秒，手动按钮也遵守缓存以减少 GitHub 请求。网络不可达、限流或尚无稳定 Release 时显示暂时无法检查，不会误报“已是最新”，也不影响聊天。此处比较的是服务端工作台版本，不把 Android 独立版本号混在一起比较。
+
 <a id="android"></a>
 
 ## Android 客户端
+
+正式签名安装包见 [GitHub Releases](https://github.com/EttijBaqaee/quayloom/releases/latest)。原生客户端 **0.2.1** 与工作台版本独立，沿用原有签名身份，可覆盖升级。
+
+“记住凭据”默认开启：只在登录成功后保存，使用 AndroidKeyStore + AES-GCM 加密，按完整工作台地址与登录方式隔离；重新打开或切换回相同地址时自动填入，但不会自动提交登录。关闭记住、或使用“退出并清除设备会话”可清除已保存凭据。密钥不可用时不退回明文保存；卸载或系统清除应用数据后需要重新输入。请勿在共用或不可信设备上启用。
 
 `android/` 提供轻量 WebView 客户端源码：填写工作台的 HTTP/HTTPS 地址，再使用使用码或管理员密码登录现有服务。它不是离线推理引擎，也不内置供应商密钥；服务端仍需独立部署。客户端不保存明文登录凭据。HTTP 不提供传输保密性，生产推荐 HTTPS。构建和安装方法见 Android 目录说明；源码存在不代表 APK 已通过实机验证。
 
@@ -189,7 +263,7 @@ OpenAI 兼容图片由管理员上传到服务器，以身份和供应商隔离�
 
 **可以直接部署到 GitHub Pages 吗？** 不能。持久会话、后台任务、密钥和配额依赖 Node 后端及可写数据目录。
 
-**为什么另一台设备访问不到 3210 端口？** 编排默认只绑定宿主机回环地址。请配置反向代理和准确的 `PUBLIC_ORIGIN`，不要误把另一台设备的 `127.0.0.1` 当成服务器地址。
+**为什么另一台设备访问不到 9810 端口？** 编排默认只绑定宿主机回环地址。请配置反向代理和准确的 `PUBLIC_ORIGIN`，不要误把另一台设备的 `127.0.0.1` 当成服务器地址。
 
 **刷新网页会停止生成吗？** 不会主动停止已提交任务。任务由服务器执行；服务器重启会保留部分内容并标为中断，不自动重发可能已计费的请求。
 
@@ -210,3 +284,25 @@ Quayloom 自有代码默认按 **GNU AGPL v3 only（`AGPL-3.0-only`）** 提供�
 源码入口和交付源码应在发布前完成核验；以上是发布要求与获取方式，不构成已部署到特定服务器或已完成 APK 实机测试的声明。
 
 README 的信息层次参考 [绘坊 · Pictelier](https://github.com/EttijBaqaee/pictelier)，功能描述与部署步骤按 Quayloom 独立整理。Quayloom 不是 DeepSeek、DSH 或 Pictelier 的官方产品。
+
+
+<a id="privacy"></a>
+
+## 隐私说明
+
+- 自部署实例的对话、任务、用量、使用码及配置保存在部署者的服务器；供应商密钥在服务端加密存储，管理员可按权限访问数据。浏览器保留界面偏好及必要的本地附件、历史迁移数据。源码托管在 GitHub 不意味着作者可以访问你的实例。
+- 调用模型、发现模型或使用联网功能时，必要的输入、附件、参数与认证信息会发送到你配置的供应商或相关服务；它们的留存、跨境处理及计费受各自政策约束。不要未经授权上传他人的敏感信息。
+- 管理员后台的版本检查仅由服务端查询 GitHub 公开 Release，不发送对话、模型密钥、登录 Cookie 或使用码；GitHub 仍可获得请求服务器的 IP 等常规连接信息。
+- Android 的会话 Cookie 在应用私有空间内管理；启用“记住凭据”后，登录凭据以设备密钥加密保存，可随时关闭并清除。设备加密不能替代可靠的锁屏、系统安全和 HTTPS。
+- 使用他人运营的实例时，还应阅读运营者的数据规则。备份、服务端日志与反向代理日志由部署者管理；README 徽章、GitHub 下载及 GHCR 拉取等外部请求可能向相应服务暴露 IP 等常规连接信息。
+
+<a id="disclaimer"></a>
+
+## 免责声明
+
+1. **按现状提供。** 本软件依 [LICENSE](LICENSE) 按现状提供，不保证无错误、持续可用或适合特定用途；请结合实际环境评估并及时更新。
+2. **部署与数据。** 部署者负责访问控制、TLS、系统维护、API 密钥、主密钥及数据备份。升级可能中断任务；密钥或数据丢失不一定能够恢复。请不要将示例配置当作已完成安全加固的生产方案。
+3. **外部服务与费用。** 第三方供应商自行决定可用性、内容政策、价格及退款。失败、取消或中断的请求仍可能计费；本地额度和统计不是供应商账单，也不是零超支承诺。使用前应核实计费并设置供应商侧限额。
+4. **内容与权利。** 模型输出可能错误、不完整或涉及他人权利；发布、商用或用于重要决策前需自行审查。使用者应拥有输入、附件及传播内容的必要授权，遵守适用法律和服务条款，不侵犯他人隐私或知识产权。
+5. **独立项目与修改版本。** Quayloom 是独立开源项目，并非 DeepSeek、GitHub、DSH 或所接供应商的官方产品。第三方部署、修改版、商业服务和宣传由其提供者负责；未经授权不得以作者或贡献者名义承诺或暗示背书。
+6. **许可与责任边界。** 自有代码采用 AGPL-3.0-only，上游及第三方仍遵守各自许可。分发或通过网络提供修改版本时，应履行适用的源码提供和版权声明义务。本声明不替代许可证、不增加额外使用限制，也不减少已授予的权利；无担保及责任限制仅在适用法律允许范围内生效，依法不得排除的责任不受影响。

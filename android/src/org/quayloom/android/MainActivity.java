@@ -54,6 +54,11 @@ public final class MainActivity extends Activity {
     private boolean busy, destroyed;
     private int generation;
     private SharedPreferences preferences;
+    private CredentialStore credentialStore;
+    private CheckBox remember;
+    private TextView storageHint;
+    private boolean updatingRemember;
+    private String credentialScope = "";
     private String lastAddress = "", lastMode = "code";
 
     @Override public void onCreate(Bundle state) {
@@ -63,6 +68,7 @@ public final class MainActivity extends Activity {
         if (android.os.Build.VERSION.SDK_INT >= 33) Api33.register(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         preferences = getSharedPreferences("connection", MODE_PRIVATE);
+        credentialStore = new CredentialStore(this);
         lastAddress = preferences.getString("url", ""); lastMode = preferences.getString("mode", "code");
         if (state != null) { lastAddress = state.getString("url", lastAddress); lastMode = state.getString("mode", lastMode); }
         showForm();
@@ -100,7 +106,7 @@ public final class MainActivity extends Activity {
                     catch (android.content.ActivityNotFoundException e) { toast("此设备没有文档保存程序"); }
                 } else new AlertDialog.Builder(this).setTitle("Quayloom " + BuildInfo.VERSION)
                     .setMessage("轻量 Android 工作台客户端\n自有代码：AGPL-3.0-only\n上游及第三方组件各自许可随对应源码提供。\n\n可通过菜单保存本 APK 内置的完整对应源码。\n源码 SHA-256：\n" + BuildInfo.SOURCE_SHA256
-                        + "\n\n不保存明文密码或使用码。WebView 会保存会话 Cookie 及站点自己的本地数据；返回地址页不等同于清除数据。")
+                        + "\n\n默认在成功登录后以 AndroidKeyStore 加密保存密码或使用码，按精确工作台地址和身份填入，不自动登录。可在连接页关闭记住并清除所有已保存凭据；安全密钥不可用时不保存，绝不回退明文。WebView 会保存会话 Cookie 及站点自己的本地数据；返回地址页不等同于清除数据。退出并清除设备会话会同时删除全部已保存凭据。")
                     .setPositiveButton("知道了", null).show();
             }).show();
     }
@@ -133,6 +139,7 @@ public final class MainActivity extends Activity {
     }
     private void showForm() {
         generation++; busy = false;
+        credential = null; remember = null; storageHint = null; credentialScope = "";
         if (web != null) { web.stopLoading(); web.loadUrl("about:blank"); web.removeAllViews(); web.destroy(); web = null; }
         endpoint = null; setRoot();
         LinearLayout header = new LinearLayout(this); header.setGravity(android.view.Gravity.CENTER_VERTICAL); header.setPadding(dp(22),dp(4),dp(12),dp(4));
@@ -160,7 +167,7 @@ public final class MainActivity extends Activity {
         address=new EditText(this); field(address,"https://example.com/Quayloom",false); address.setText(lastAddress);
         address.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_NEXT); urlLabel.setLabelFor(address.getId()); form.addView(address,new LinearLayout.LayoutParams(-1,dp(56)));
         httpHint=text("",13); httpHint.setTextColor(0xffa34725); httpHint.setPadding(0,dp(8),0,0); form.addView(httpHint);
-        address.addTextChangedListener(new TextWatcher(){ public void beforeTextChanged(CharSequence s,int a,int c,int f){} public void onTextChanged(CharSequence s,int a,int b,int c){ updateHttpHint(); } public void afterTextChanged(Editable e){} }); updateHttpHint();
+        address.addTextChangedListener(new TextWatcher(){ public void beforeTextChanged(CharSequence s,int a,int c,int f){} public void onTextChanged(CharSequence s,int a,int b,int c){ updateHttpHint(); refreshCredential(false); } public void afterTextChanged(Editable e){} }); updateHttpHint();
         gap(form,24); modes=new RadioGroup(this); modes.setOrientation(RadioGroup.HORIZONTAL); modes.setPadding(dp(4),dp(4),dp(4),dp(4)); modes.setBackground(rounded(0xfff1f2f5,0,28));
         code=new RadioButton(this); code.setId(View.generateViewId()); code.setText("使用码");
         admin=new RadioButton(this); admin.setId(View.generateViewId()); admin.setText("管理员");
@@ -171,10 +178,44 @@ public final class MainActivity extends Activity {
         credential.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         credential.setOnEditorActionListener((v,action,event) -> { if(action==android.view.inputmethod.EditorInfo.IME_ACTION_DONE){submit();return true;}return false; });
         form.addView(credential,new LinearLayout.LayoutParams(-1,dp(56)));
-        modes.setOnCheckedChangeListener((group,id) -> { credential.setText(""); credentialLabel.setText(mode().equals("code") ? "使用码" : "管理员密码"); credential.setHint(mode().equals("code") ? "输入使用码" : "输入管理员密码"); styleMode(code,code.isChecked()); styleMode(admin,admin.isChecked()); });
+        modes.setOnCheckedChangeListener((group,id) -> { credentialLabel.setText(mode().equals("code") ? "使用码" : "管理员密码"); credential.setHint(mode().equals("code") ? "输入使用码" : "输入管理员密码"); styleMode(code,code.isChecked()); styleMode(admin,admin.isChecked()); refreshCredential(true); });
+        gap(form,12); remember=new CheckBox(this); remember.setText("记住并填入凭据"); remember.setTextSize(14); remember.setTextColor(0xff646975);
+        remember.setSaveEnabled(false); remember.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO); form.addView(remember);
+        remember.setOnCheckedChangeListener((view,checked) -> {
+            if (updatingRemember) return;
+            credential.setText("");
+            boolean changed = credentialStore.setRemember(checked);
+            refreshCredential(true);
+            if (!changed) toast("安全存储操作失败，已停止保存；如需彻底清除，请重试或在系统设置中清除此应用数据。");
+        });
+        storageHint=text("",12); storageHint.setTextColor(0xff858995); form.addView(storageHint);
         status=text("",14); status.setTextColor(0xffac3434); status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); status.setPadding(0,dp(12),0,dp(8)); form.addView(status);
         loginButton=button("连接并登录  →",v -> submit()); loginButton.setTextColor(Color.WHITE); loginButton.setBackground(rounded(0xff4d6bfe,0,28)); form.addView(loginButton,new LinearLayout.LayoutParams(-1,dp(54)));
-        gap(form,16); TextView privacy=text("凭据仅用于本次登录，不保存在设备",12); privacy.setTextColor(0xff858995); privacy.setGravity(android.view.Gravity.CENTER); form.addView(privacy);
+        gap(form,16); TextView privacy=text("仅成功登录后加密保存；填入不会自动登录",12); privacy.setTextColor(0xff858995); privacy.setGravity(android.view.Gravity.CENTER); form.addView(privacy);
+        refreshCredential(true);
+    }
+    private void syncRememberControl() {
+        if (remember == null) return;
+        updatingRemember = true;
+        remember.setChecked(credentialStore.isRemembering());
+        remember.setEnabled(!busy && credentialStore.isAvailable());
+        updatingRemember = false;
+        if (storageHint != null) storageHint.setText(!credentialStore.isAvailable()
+            ? "设备安全存储不可用，已停止保存。若清除失败，请在系统设置中清除此应用数据。"
+            : credentialStore.isRemembering() ? "仅此设备加密保存，按工作台地址和身份分别填入。关闭将清空输入及全部已保存凭据。"
+            : "记住已关闭，凭据仅用于本次登录，不保存。系统自动填充始终禁用。");
+    }
+    private void refreshCredential(boolean force) {
+        if (credential == null || remember == null) return;
+        Endpoint target = null;
+        try { target = Endpoint.parse(address.getText().toString()); } catch (Exception ignored) { }
+        String next = target == null ? "" : target.base + "\n" + mode();
+        if (force || !next.equals(credentialScope)) {
+            credential.setText(""); // Clear before any lookup, including invalid or unknown addresses.
+            credentialScope = next;
+            if (target != null && credentialStore.isRemembering()) credential.setText(credentialStore.load(target,mode()));
+        }
+        syncRememberControl();
     }
     private void updateHttpHint() {
         boolean http = Endpoint.trim(address.getText().toString()).toLowerCase(Locale.ROOT).startsWith("http://");
@@ -186,20 +227,24 @@ public final class MainActivity extends Activity {
         final Endpoint target;
         try { target = Endpoint.parse(address.getText().toString()); }
         catch (Exception e) { status.setText("请输入有效的 http/https 工作台地址（含部署路径，不含查询参数）。"); return; }
-        String secret = Endpoint.trim(credential.getText().toString()); credential.setText(secret); address.setText(target.base);
-        if (secret.isEmpty()) { status.setText(mode().equals("code") ? "请输入使用码" : "请输入管理员密码"); return; }
+        final String secret = Endpoint.trim(credential.getText().toString()), selected = mode();
+        address.setText(target.base); credential.setText(secret);
+        if (secret.isEmpty()) { status.setText(selected.equals("code") ? "请输入使用码" : "请输入管理员密码"); return; }
         if (secret.length() > 1024) { status.setText("登录凭据过长"); return; }
         if (target.isHttp()) {
             new AlertDialog.Builder(this).setTitle("HTTP 连接不安全")
                 .setMessage("此地址不会加密登录凭据与对话。仅在信任的网络中使用，建议改为 HTTPS。是否继续？")
-                .setNegativeButton("取消",null).setPositiveButton("继续连接",(d,w) -> beginLogin(target)).show();
-        } else beginLogin(target);
+                .setNegativeButton("取消",null).setPositiveButton("继续连接",(d,w) -> beginLogin(target,selected,secret)).show();
+        } else beginLogin(target,selected,secret);
     }
-    private void beginLogin(Endpoint target) {
-        if (busy) return;
-        final String secret = Endpoint.trim(credential.getText().toString()), selected = mode();
-        if (secret.isEmpty()) return;
-        credential.setText(""); busy = true; status.setText("正在连接…"); loginButton.setEnabled(false); address.setEnabled(false); code.setEnabled(false); admin.setEnabled(false);
+    private void beginLogin(Endpoint target, String selected, String secret) {
+        if (busy || destroyed || secret.isEmpty()) return;
+        try {
+            if (!target.base.equals(Endpoint.parse(address.getText().toString()).base) || !selected.equals(mode())) {
+                refreshCredential(true); status.setText("地址或身份已变化，请重新确认登录。"); return;
+            }
+        } catch (Exception e) { refreshCredential(true); return; }
+        credential.setText(""); busy = true; status.setText("正在连接…"); loginButton.setEnabled(false); address.setEnabled(false); code.setEnabled(false); admin.setEnabled(false); credential.setEnabled(false); syncRememberControl();
         lastAddress = target.base; lastMode = selected;
         preferences.edit().putString("url",lastAddress).putString("mode",lastMode).apply();
         final int request = generation;
@@ -215,7 +260,9 @@ public final class MainActivity extends Activity {
                         if(left.decrementAndGet()==0) {
                             if (destroyed || request!=generation) return;
                             if (!accepted[0] || cm.getCookie(target.base + "/")==null) { loginError("设备未接受登录 Cookie，请检查地址、HTTPS 和系统 WebView。",request); return; }
-                            cm.flush(); endpoint=target; busy=false; ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(credential.getWindowToken(),0); showWorkspace();
+                            cm.flush();
+                            if (!credentialStore.save(target,selected,secret)) toast("登录成功，但设备安全存储不可用；未保存凭据，已停止记住功能。");
+                            endpoint=target; busy=false; ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(credential.getWindowToken(),0); showWorkspace();
                         }
                     });
                 });
@@ -229,7 +276,7 @@ public final class MainActivity extends Activity {
         });
     }
     private void loginError(String message,int request) {
-        if(destroyed || request!=generation)return; busy=false; status.setText(message); loginButton.setEnabled(true); address.setEnabled(true); code.setEnabled(true); admin.setEnabled(true);
+        if(destroyed || request!=generation)return; busy=false; status.setText(message); loginButton.setEnabled(true); address.setEnabled(true); code.setEnabled(true); admin.setEnabled(true); credential.setEnabled(true); refreshCredential(true);
     }
     private static final class Api33 {
         static void register(MainActivity activity) { activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,activity::goBack); }
@@ -293,7 +340,7 @@ public final class MainActivity extends Activity {
         errorPanel.addView(button("重新加载",v -> reloadWorkspace()),new LinearLayout.LayoutParams(dp(180),dp(48))); gap(errorPanel,12);
         errorPanel.addView(button("客户端设置",v -> workspaceMenu()),new LinearLayout.LayoutParams(dp(180),dp(48)));
         workspace.addView(errorPanel,new FrameLayout.LayoutParams(-1,-1));
-        WebSettings settings=web.getSettings(); settings.setUserAgentString(settings.getUserAgentString()+" QuayloomAndroid/0.2.0"); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true);
+        WebSettings settings=web.getSettings(); settings.setUserAgentString(settings.getUserAgentString()+" QuayloomAndroid/"+BuildInfo.VERSION); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(false); settings.setAllowContentAccess(false); settings.setAllowFileAccessFromFileURLs(false); settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW); settings.setJavaScriptCanOpenWindowsAutomatically(false); settings.setSupportMultipleWindows(false);
         settings.setGeolocationEnabled(false); settings.setMediaPlaybackRequiresUserGesture(true); settings.setSafeBrowsingEnabled(true);
@@ -359,12 +406,14 @@ public final class MainActivity extends Activity {
     }
     private void logoutDevice() {
         new AlertDialog.Builder(this).setTitle("退出此设备？")
-            .setMessage("将关闭工作台，并清除此应用中所有工作台的 Cookie、缓存和站点数据，包括仅保存在本机的聊天记录。服务器记录不会删除。")
+            .setMessage("将关闭工作台，关闭记住功能并删除所有已保存的加密凭据及专用密钥，同时清除此应用中所有工作台的 Cookie、缓存和站点数据，包括仅保存在本机的聊天记录。服务器记录不会删除。")
             .setNegativeButton("取消",null).setPositiveButton("退出并清除",(d,w)->{
                 if(web!=null){web.stopLoading();web.clearCache(true);web.clearHistory();}
-                showForm(); busy=true; loginButton.setEnabled(false); status.setText("正在清除设备会话…");
+                final boolean credentialsCleared = credentialStore.clearAll();
+                if(credential!=null)credential.setText("");
+                showForm(); busy=true; loginButton.setEnabled(false); address.setEnabled(false); code.setEnabled(false); admin.setEnabled(false); credential.setEnabled(false); syncRememberControl(); status.setText("正在清除设备会话…");
                 android.webkit.WebStorage.getInstance().deleteAllData();
-                CookieManager.getInstance().removeAllCookies(ok->{ CookieManager.getInstance().flush(); if(!destroyed && web==null){busy=false;loginButton.setEnabled(true);status.setText("");} });
+                CookieManager.getInstance().removeAllCookies(ok->{ CookieManager.getInstance().flush(); if(!destroyed && web==null){busy=false;loginButton.setEnabled(true);address.setEnabled(true);code.setEnabled(true);admin.setEnabled(true);credential.setEnabled(true);syncRememberControl();status.setText(credentialsCleared ? "" : "安全存储清除失败，已停止保存；请在系统设置中清除此应用数据。");} });
             }).show();
     }
     private void leaveWorkspace() {

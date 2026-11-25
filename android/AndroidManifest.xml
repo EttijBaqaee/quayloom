@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.quayloom.android" android:versionCode="3" android:versionName="0.2.0">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.quayloom.android" android:versionCode="4" android:versionName="0.2.1">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36" />
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:label="Quayloom" android:icon="@drawable/quayloom" android:theme="@style/AppTheme"

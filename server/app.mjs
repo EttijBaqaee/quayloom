@@ -12,6 +12,7 @@ import { createServerChat } from './chat.mjs'
 import { createNotices } from './notices.mjs'
 import { createImages } from './images.mjs'
 import { createUsageAnalytics } from './analytics.mjs'
+import { createUpdateChecker } from './updates.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const JSON_LIMIT = 4 * 1024 * 1024
@@ -51,6 +52,7 @@ export function createApp(options = {}) {
   const chat = createServerChat({ store, adapters, ledger, controllers, accessControllers, images })
   const notices = createNotices({ store })
   const analytics = createUsageAnalytics({ db: store.db })
+  const updates = createUpdateChecker(options.updateCheck)
   const usageFor = code => {
     const usage = ledger.accessUsage(code)
     return { ...usage, providers: usage.providers.map(item => {
@@ -129,6 +131,13 @@ export function createApp(options = {}) {
         if (pathname === '/api/auth/session' && req.method === 'GET') return json(res, 200, { authenticated: true, principal })
         if (pathname === '/api/auth/logout' && req.method === 'POST') { store.logout(cookie(req)); res.setHeader('Set-Cookie', cookieValue('', 0)); return json(res, 200, { ok: true }) }
         if (pathname.startsWith('/api/admin/') && principal.role !== 'admin') fail(403, '仅管理员可以访问管理接口')
+        if (pathname === '/api/admin/update') {
+          if (req.method !== 'GET') fail(405, 'Method not allowed')
+          const result = await updates.check()
+          const active = store.sessionInfo(cookie(req))
+          if (active?.id !== principal.id || active?.role !== 'admin') fail(401, '会话已失效，请重新登录')
+          return json(res, 200, result)
+        }
         if (pathname === '/api/admin/analytics') {
           if (req.method !== 'GET') fail(405, 'Method not allowed')
           try { return json(res, 200, analytics.query(url.searchParams)) } catch (error) {
