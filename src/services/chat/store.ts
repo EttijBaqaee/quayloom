@@ -10,17 +10,18 @@ import {
   useUploads,
 } from '../attachments.js'
 import { getReasoningEffortPreference, resolveReasoningEffort, useSettings } from '../settings.js'
-import { selectedTarget, supportedCapabilities, currentCapabilities, useStudio, StudioError } from '../studio.js'
+import { selectedTarget, supportedCapabilities, currentCapabilities, useStudio, StudioError, restoreModelSelection, newChatModelSelection, rememberModelSelection, type ModelSelection } from '../studio.js'
 import { appendBranch, getVisibleMessages, normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
 import { historyDatabaseName } from '../identity.js'
-import { remoteApi, rememberRevision, sessionRevision, waitForSessionWrites, type ServerJob } from './remote.js'
+import { remoteApi, rememberRevision, sessionRevision, waitForSessionWrites, saveRemoteModelSelection, type ServerJob } from './remote.js'
 import {
   clearAllDrafts,
   clearDraft,
   clearSentDraft,
   getDraft,
   prepareDraftMessage,
+  useDrafts,
 } from './drafts.js'
 import { createLatestReminder } from './latestReminder.js'
 import { assessAttachmentCompatibility, type AttachmentReference } from './attachmentCompatibility.js'
@@ -121,6 +122,77 @@ let accessSequence = 0
 let historyEpoch = 0
 let initTask: Promise<void> | undefined
 const sessionLoads = new Map<string, { promise: Promise<void> }>()
+const sessionPersists = new Map<string, Promise<void>>()
+const pendingModelSelections = new Map<string, ModelSelection>()
+const modelSelectionSaves = new Map<string, Promise<void>>()
+
+/** Legacy history is recoverable only with an exact provider+model pair; never guess by model name. */
+export const sessionModelSelection = (session: Session): ModelSelection | null => {
+  if (session.modelSelection !== undefined) { return session.modelSelection }
+  const reply = getVisibleMessages(session).findLast(message => message.role === 'assistant' && !!message.providerId && !!message.model)
+  return reply?.role === 'assistant' && reply.providerId && reply.model ? { providerId: reply.providerId, modelId: reply.model } : null
+}
+const restoreSessionModel = (id: string) => {
+  const session = getSession(id)
+  if (get().activeId === id && session) { restoreModelSelection(sessionModelSelection(session)) }
+}
+const persistModelSelection = (id: string) => {
+  const selection = pendingModelSelections.get(id)
+  if (!selection || modelSelectionSaves.has(id) || deletingSessions.has(id) || get().importingHistory) { return }
+  const epoch = historyEpoch, principalId = useStudio.getState().principal?.id
+  const task = (sessionPersists.get(id) ?? Promise.resolve()).then(() => {
+    if (epoch !== historyEpoch || principalId !== useStudio.getState().principal?.id) { throw new Error('登录身份或历史已变化') }
+    if (!pendingModelSelections.has(id) || deletingSessions.has(id)) { return }
+    const snapshot = getSession(id)
+    return saveRemoteModelSelection(id, selection, saved => {
+      // Merge the acknowledged snapshot only if no send/edit/choice changed local content.
+      if (epoch === historyEpoch && principalId === useStudio.getState().principal?.id && getSession(id) === snapshot && !deletingSessions.has(id)) { adoptServerSession(saved) }
+    })
+  }).then(() => {
+    if (epoch !== historyEpoch || principalId !== useStudio.getState().principal?.id) { return }
+    if (pendingModelSelections.get(id) === selection) {
+      pendingModelSelections.delete(id)
+      set(state => ({ sessionSaveErrors: Object.fromEntries(Object.entries(state.sessionSaveErrors).filter(([key]) => key !== id)) }))
+    }
+  }).catch((error: unknown) => {
+    db.reportStorageError('save model selection')(error)
+    if (epoch === historyEpoch && principalId === useStudio.getState().principal?.id && pendingModelSelections.has(id) && !deletingSessions.has(id)) {
+      set(state => ({ sessionSaveErrors: { ...state.sessionSaveErrors, [id]: true } }))
+    }
+  }).finally(() => {
+    if (modelSelectionSaves.get(id) === task) { modelSelectionSaves.delete(id) }
+    if (epoch === historyEpoch && pendingModelSelections.has(id) && pendingModelSelections.get(id) !== selection) { persistModelSelection(id) }
+  })
+  modelSelectionSaves.set(id, task)
+}
+
+/** Explicit UI choice. Empty conversations are saved too; no paid request is started. */
+export const selectChatModel = (selection: ModelSelection): boolean => {
+  const state = get()
+  if (!state.ready || state.importingHistory || !useStudio.getState().authenticated || !selectedTarget(selection) ||
+    Object.keys(state.streaming).length || Object.values(useUploads.getState().tasks).some(task => task.status === 'uploading')) { return false }
+  if (state.activeId && (!getSession(state.activeId) || deletingSessions.has(state.activeId))) { return false }
+  rememberModelSelection(selection)
+  restoreModelSelection(selection)
+  if (state.activeId) {
+    updateSession(state.activeId, session => ({ ...session, modelSelection: selection }))
+    pendingModelSelections.set(state.activeId, selection)
+    persistModelSelection(state.activeId)
+  } else {
+    const now = Date.now()
+    const session: Session = { id: createId(), title: '', createdAt: now, updatedAt: now, messages: [], rootMessageId: null, modelSelection: selection }
+    touchSession(session.id)
+    // Preserve the unsent welcome-page draft when this explicit choice creates a session.
+    useDrafts.setState(current => {
+      const drafts = new Map(current.drafts), draft = drafts.get(null)
+      if (draft) { drafts.set(session.id, draft); drafts.delete(null) }
+      return { drafts }
+    })
+    set(current => ({ activeId: session.id, sessions: [toSessionSummary(session), ...current.sessions], sessionCache: { ...current.sessionCache, [session.id]: session } }))
+    persist(session.id)
+  }
+  return true
+}
 
 const touchSession = (id: string) => sessionAccess.set(id, ++accessSequence)
 
@@ -136,6 +208,7 @@ const trimSessionCache = () => {
         id !== state.activeId &&
         !Object.hasOwn(state.streaming, id) &&
         !unsavedSessions.has(id) &&
+        !pendingModelSelections.has(id) &&
         !deletingSessions.has(id)
     )
     .sort((a, b) => (sessionAccess.get(a) ?? 0) - (sessionAccess.get(b) ?? 0))
@@ -193,7 +266,7 @@ const persist = (sessionId: string) => {
     }
     const epoch = historyEpoch
     const files = pendingFiles.get(sessionId)
-    void db
+    const task = db
       .saveSession(session, files)
       .then(() => {
         if (epoch !== historyEpoch || !getSession(sessionId)) {
@@ -219,13 +292,15 @@ const persist = (sessionId: string) => {
             sessionSaveErrors: { ...state.sessionSaveErrors, [sessionId]: true },
           }))
         }
-      })
+      }).finally(() => { if (sessionPersists.get(sessionId) === task) { sessionPersists.delete(sessionId) } })
+    sessionPersists.set(sessionId, task)
   }
 }
 
 export const retrySaveSessions = () => {
   if (!get().importingHistory) {
     unsavedSessions.forEach(persist)
+    pendingModelSelections.forEach((_selection, id) => persistModelSelection(id))
   }
 }
 
@@ -344,9 +419,10 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
       }
       const settled = normalizeSession(stored)
       // 读取期间可能已在列表重命名，保留最新元数据，不能让旧读取覆盖它。
-      const session = settled
+      const session = { ...settled, modelSelection: pendingModelSelections.get(id) ?? sessionModelSelection(settled) }
       touchSession(id)
       set((state) => ({ sessionCache: { ...state.sessionCache, [id]: session } }))
+      restoreSessionModel(id)
       trimSessionCache()
     } catch (error) {
       if (epoch === historyEpoch && sessionLoads.get(id) === load) {
@@ -400,6 +476,7 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
     initTask = undefined
     sessionLoads.clear()
     await waitForIdle()
+    await Promise.allSettled([...sessionPersists.values(), ...modelSelectionSaves.values()])
     await db.clearStaging()
     let summaries: SessionSummary[]
     try {
@@ -412,6 +489,7 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
     sessionAccess.clear()
     unsavedSessions.clear()
     pendingFiles.clear()
+    pendingModelSelections.clear()
     clearAllDrafts()
     set({
       ready: true,
@@ -493,6 +571,7 @@ const removeSessionData = async (id: string): Promise<boolean> => {
     sessionAccess.delete(id)
     unsavedSessions.delete(id)
     pendingFiles.delete(id)
+    pendingModelSelections.delete(id)
     clearDraft(id)
     set((state) => ({
       sessions: state.sessions.filter((session) => session.id !== id),
@@ -583,7 +662,7 @@ export const sendTextOnlyCopy = (sourceId: string | null): boolean => {
   ])
   const question: UserMessage = { id: createId(), role: 'user', content: draft.text.trim() || omittedAttachmentText, files: [], createdAt: now }
   const reply = createReply()
-  const session = normalizeSession({ id: createId(), title: `${source?.title || '对话'} · 文字副本`.slice(0, 120), createdAt: now, updatedAt: now, messages: [...history, question, reply] })
+  const session = normalizeSession({ id: createId(), title: `${source?.title || '对话'} · 文字副本`.slice(0, 120), createdAt: now, updatedAt: now, messages: [...history, question, reply], modelSelection: useStudio.getState().selection })
   touchSession(session.id)
   set(state => ({ sessions: [toSessionSummary(session), ...state.sessions], sessionCache: { ...state.sessionCache, [session.id]: session }, activeId: session.id }))
   persist(session.id)
@@ -596,7 +675,7 @@ export const sendTextOnlyCopy = (sourceId: string | null): boolean => {
  * 同步接收成功才清空草稿，附件原件由会话接管；保存失败仍通过保存入口重试。
  */
 export const sendMessage = (targetSessionId: string | null) => {
-  if (get().importingHistory || !get().ready) {
+  if (get().importingHistory || !get().ready || !selectedTarget()) {
     return false
   }
   const prepared = prepareDraftMessage(getDraft(targetSessionId), useUploads.getState().tasks)
@@ -620,6 +699,7 @@ export const sendMessage = (targetSessionId: string | null) => {
       updatedAt: now,
       messages: [],
       rootMessageId: null,
+      modelSelection: useStudio.getState().selection,
     }
     sessionId = session.id
     touchSession(session.id)
@@ -957,15 +1037,27 @@ const prepareFiles = async (sessionId: string, request: Request, signal: AbortSi
 useChatStore.subscribe((state, previous) => {
   if (state.activeId !== previous.activeId) {
     try { sessionStorage.setItem(`${historyDatabaseName()}:active`, state.activeId ?? '') } catch { /* storage may be unavailable */ }
+    if (state.activeId) {
+      const session = getSession(state.activeId)
+      restoreModelSelection(session ? sessionModelSelection(session) : null)
+    } else {
+      const selection = newChatModelSelection()
+      useStudio.setState({ selection, selectionResolved: selection !== null })
+    }
   }
 })
 
 const pauseRemote = () => new Promise<void>(resolve => setTimeout(resolve, 500))
 const adoptServerSession = (session: Session) => {
+  // A queued poll may predate an acknowledged metadata save; never roll back revision/choice.
+  if ((session.revision ?? 0) < sessionRevision(session.id)) { return }
   rememberRevision(session)
-  updateSession(session.id, () => normalizeSession(session))
+  const pending = pendingModelSelections.get(session.id)
+  const normalized = normalizeSession(session)
+  updateSession(session.id, () => ({ ...normalized, modelSelection: pending ?? sessionModelSelection(normalized) }))
+  restoreSessionModel(session.id)
   unsavedSessions.delete(session.id)
-  set(state => ({ sessionSaveErrors: Object.fromEntries(Object.entries(state.sessionSaveErrors).filter(([id]) => id !== session.id)) }))
+  if (!pending) { set(state => ({ sessionSaveErrors: Object.fromEntries(Object.entries(state.sessionSaveErrors).filter(([id]) => id !== session.id)) })) }
 }
 
 /** Polling is a detachable subscriber. Only an explicit abort/stop action calls /stop. */
@@ -1025,6 +1117,8 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
     if (!session) {throw new Error('会话已被移除')}
     await db.saveSession(session, pendingFiles.get(sessionId))
     pendingFiles.delete(sessionId)
+    await sessionPersists.get(sessionId)
+    await modelSelectionSaves.get(sessionId)
     await waitForSessionWrites(sessionId)
     controller.signal.throwIfAborted()
     const body: CreateMessageRequest = {

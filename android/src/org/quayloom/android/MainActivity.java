@@ -61,12 +61,21 @@ public final class MainActivity extends Activity {
     private String credentialScope = "";
     private String lastAddress = "", lastMode = "code";
 
+    private boolean resumed, imeVisible;
+    private Api33 backDispatcher;
+    private final Runnable appearanceSync = new Runnable() {
+        @Override public void run() {
+            if (!resumed || destroyed || web == null || root == null) return;
+            sampleWorkspaceAppearance();
+            root.postDelayed(this, 1200);
+        }
+    };
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        if (android.os.Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
-        if (android.os.Build.VERSION.SDK_INT >= 29) getWindow().setNavigationBarContrastEnforced(false);
-        if (android.os.Build.VERSION.SDK_INT >= 33) Api33.register(this);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        // Screenshots/recording are intentionally allowed. Credential storage remains encrypted.
+        configureWindow();
+        if (android.os.Build.VERSION.SDK_INT >= 33) backDispatcher = new Api33(this);
         preferences = getSharedPreferences("connection", MODE_PRIVATE);
         credentialStore = new CredentialStore(this);
         lastAddress = preferences.getString("url", ""); lastMode = preferences.getString("mode", "code");
@@ -77,18 +86,85 @@ public final class MainActivity extends Activity {
     private TextView text(String value, int size) {
         TextView v = new TextView(this); v.setText(value); v.setTextSize(size); v.setTextColor(Color.rgb(31,36,55)); return v;
     }
+    @SuppressWarnings("deprecation") private void configureWindow() {
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        if (android.os.Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
+        else getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        if (android.os.Build.VERSION.SDK_INT >= 28) getWindow().setNavigationBarDividerColor(Color.TRANSPARENT);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
+    }
     private void setRoot() {
-        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.WHITE);
+        if (root != null) root.removeCallbacks(appearanceSync);
+        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
         root.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
         root.setOnApplyWindowInsetsListener((v, insets) -> {
             if (android.os.Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
                 int ime = insets.getInsets(WindowInsets.Type.ime()).bottom;
+                imeVisible = insets.isVisible(WindowInsets.Type.ime());
                 v.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime));
-            } else v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
-            return android.os.Build.VERSION.SDK_INT >= 30 ? WindowInsets.CONSUMED : insets.consumeSystemWindowInsets();
+            } else {
+                int left = insets.getSystemWindowInsetLeft(), top = insets.getSystemWindowInsetTop();
+                int right = insets.getSystemWindowInsetRight(), bottom = insets.getSystemWindowInsetBottom();
+                // In adjustResize, legacy bottom includes the IME. Do not add navigation height again.
+                imeVisible = bottom > insets.getStableInsetBottom() + dp(80);
+                if (android.os.Build.VERSION.SDK_INT >= 28 && insets.getDisplayCutout() != null) {
+                    android.view.DisplayCutout cutout = insets.getDisplayCutout();
+                    left = Math.max(left, cutout.getSafeInsetLeft()); top = Math.max(top, cutout.getSafeInsetTop());
+                    right = Math.max(right, cutout.getSafeInsetRight()); bottom = Math.max(bottom, cutout.getSafeInsetBottom());
+                }
+                v.setPadding(left, top, right, bottom);
+            }
+            // Native owns the safe area; do not also deliver these insets to WebView/CSS.
+            if (android.os.Build.VERSION.SDK_INT >= 30) return WindowInsets.CONSUMED;
+            WindowInsets remaining = insets.consumeSystemWindowInsets().consumeStableInsets();
+            return android.os.Build.VERSION.SDK_INT >= 28 ? remaining.consumeDisplayCutout() : remaining;
         });
-        setContentView(root); root.requestApplyInsets();
+        setContentView(root); setSurfaceColor(Color.WHITE); root.requestApplyInsets();
+    }
+    @SuppressWarnings("deprecation") private void setSurfaceColor(int color) {
+        if (root == null) return;
+        root.setBackgroundColor(color);
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(color));
+        if (web != null) web.setBackgroundColor(color);
+        boolean darkIcons = Color.luminance(color) > 0.5f;
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            android.view.WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(darkIcons ? mask : 0, mask);
+            }
+        } else {
+            View decor = getWindow().getDecorView(); int flags = decor.getSystemUiVisibility();
+            int mask = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            decor.setSystemUiVisibility(darkIcons ? flags | mask : flags & ~mask);
+        }
+    }
+    private void scheduleAppearanceSync() {
+        if (root == null) return;
+        root.removeCallbacks(appearanceSync);
+        if (resumed && web != null) root.post(appearanceSync);
+    }
+    private void sampleWorkspaceAppearance() {
+        final WebView current = web; final LinearLayout currentRoot = root; final int request = generation;
+        if (current == null || pageFailed || !allowed(current.getUrl())) return;
+        // Read only the rendered background; no JS bridge, observer, storage access or page mutation.
+        current.evaluateJavascript("(function(){var nodes=[document.body,document.documentElement];"
+            + "for(var i=0;i<nodes.length;i++){if(!nodes[i])continue;var c=getComputedStyle(nodes[i]).backgroundColor;"
+            + "var m=c.match(/^rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)$/);"
+            + "if(m&&(!m[4]||Number(m[4])===1)){return '#'+[m[1],m[2],m[3]].map(function(n){return ('0'+Number(n).toString(16)).slice(-2)}).join('')}}return null})()",
+            value -> {
+                if (destroyed || !resumed || current != web || currentRoot != root || request != generation || pageFailed || !allowed(current.getUrl())) return;
+                // A document can influence only an opaque RGB color, never a URL or native command.
+                if (value != null && value.matches("\"#[0-9a-fA-F]{6}\"")) setSurfaceColor(Color.parseColor(value.substring(1,8)));
+            });
     }
     private Button button(String label, View.OnClickListener click) {
         Button b = new Button(this); b.setText(label); b.setTextSize(15); b.setAllCaps(false);
@@ -141,7 +217,7 @@ public final class MainActivity extends Activity {
         generation++; busy = false;
         credential = null; remember = null; storageHint = null; credentialScope = "";
         if (web != null) { web.stopLoading(); web.loadUrl("about:blank"); web.removeAllViews(); web.destroy(); web = null; }
-        endpoint = null; setRoot();
+        endpoint = null; updateBackCallback(); setRoot();
         LinearLayout header = new LinearLayout(this); header.setGravity(android.view.Gravity.CENTER_VERTICAL); header.setPadding(dp(22),dp(4),dp(12),dp(4));
         TextView brand = text("Quayloom",19); brand.setTypeface(android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD);
         header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
@@ -278,8 +354,23 @@ public final class MainActivity extends Activity {
     private void loginError(String message,int request) {
         if(destroyed || request!=generation)return; busy=false; status.setText(message); loginButton.setEnabled(true); address.setEnabled(true); code.setEnabled(true); admin.setEnabled(true); credential.setEnabled(true); refreshCredential(true);
     }
+    // Keep API 33 types isolated so Android 8-12 never loads their implementation.
     private static final class Api33 {
-        static void register(MainActivity activity) { activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,activity::goBack); }
+        private final MainActivity activity;
+        private final android.window.OnBackInvokedCallback callback;
+        private boolean registered;
+        Api33(MainActivity activity) { this.activity = activity; callback = activity::goBack; }
+        void setEnabled(boolean enabled) {
+            if (registered == enabled) return;
+            if (enabled) activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+            else activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(callback);
+            registered = enabled;
+        }
+    }
+    private void updateBackCallback() {
+        // Dialogs and the IME retain platform priority. Cancelled predictive gestures do nothing.
+        if (backDispatcher != null) backDispatcher.setEnabled(!destroyed && web != null);
     }
     private WebResourceResponse blocked() { return new WebResourceResponse("text/plain","UTF-8",403,"Blocked by Quayloom",Collections.emptyMap(),new ByteArrayInputStream(new byte[0])); }
     /** Own main-document transport prevents automatic document redirects; CSP protects subresources/forms. */
@@ -331,6 +422,9 @@ public final class MainActivity extends Activity {
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal); progress.setMax(100);
         FrameLayout workspace=new FrameLayout(this); root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1));
         web = new WebView(this); workspace.addView(web,new FrameLayout.LayoutParams(-1,-1)); web.setSaveEnabled(false);
+        updateBackCallback();
+        setSurfaceColor((getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+            == Configuration.UI_MODE_NIGHT_YES ? 0xff1b1b1d : Color.WHITE);
         FrameLayout.LayoutParams progressParams=new FrameLayout.LayoutParams(-1,dp(2),android.view.Gravity.TOP); workspace.addView(progress,progressParams);
         final WebView workspaceWeb=web; final int workspaceGeneration=generation;
         errorPanel=new LinearLayout(this); errorPanel.setOrientation(LinearLayout.VERTICAL); errorPanel.setGravity(android.view.Gravity.CENTER);
@@ -376,9 +470,10 @@ public final class MainActivity extends Activity {
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){ handler.cancel(); if(view!=web)return; pageError(); toast("HTTPS 证书验证失败，已阻止加载"); }
             @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){ if(view==web && request.isForMainFrame())pageError(); }
             @Override public void onReceivedHttpError(WebView view,WebResourceRequest request,WebResourceResponse response){ if(view==web && request.isForMainFrame() && response.getStatusCode()>=400)pageError(); }
-            @Override public void onPageFinished(WebView view,String url){ if(view!=web)return; progress.setVisibility(View.INVISIBLE); if(allowed(url))CookieManager.getInstance().flush(); }
+            @Override public void onPageFinished(WebView view,String url){ if(view!=web)return; progress.setVisibility(View.INVISIBLE); if(allowed(url)){CookieManager.getInstance().flush();scheduleAppearanceSync();} }
         });
         web.loadUrl(endpoint.base + "/");
+        scheduleAppearanceSync();
     }
     private boolean isReservedSignal(Uri uri) {
         Endpoint current=endpoint; if(current==null || uri==null)return false;
@@ -395,7 +490,7 @@ public final class MainActivity extends Activity {
         Uri expected=Uri.parse(current.base+"/__quayloom_android/menu");
         return u.getScheme()!=null && u.getScheme().equalsIgnoreCase(expected.getScheme()) && u.getHost()!=null && u.getHost().equalsIgnoreCase(expected.getHost()) && u.getPort()==expected.getPort() && current.allows(u.toString()) && u.getEncodedPath()!=null && u.getEncodedPath().equals(expected.getEncodedPath());
     }
-    private void pageError() { if(destroyed || web==null)return; pageFailed=true; errorPanel.setVisibility(View.VISIBLE); progress.setVisibility(View.INVISIBLE); }
+    private void pageError() { if(destroyed || web==null)return; pageFailed=true; errorPanel.setVisibility(View.VISIBLE); progress.setVisibility(View.INVISIBLE); setSurfaceColor(Color.WHITE); }
     private void reloadWorkspace() { if(web==null)return; pageFailed=false; errorPanel.setVisibility(View.GONE); web.loadUrl(endpoint.base+"/"); }
     private void workspaceMenu() {
         new AlertDialog.Builder(this).setTitle("工作台")
@@ -420,19 +515,22 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("返回地址页？").setMessage("当前页面会关闭，工作台会话及站点数据仍保留。需要清除登录状态时，请使用菜单中的退出操作。")
             .setNegativeButton("取消",null).setPositiveButton("返回地址页",(d,w)->showForm()).show();
     }
-    private void goBack() {
-        if(android.os.Build.VERSION.SDK_INT>=30 && root!=null && root.getRootWindowInsets()!=null && root.getRootWindowInsets().isVisible(WindowInsets.Type.ime())) {
+    @SuppressWarnings("deprecation") private void goBack() {
+        if (imeVisible && root != null) {
             ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(root.getWindowToken(),0); return;
         }
-        if(android.os.Build.VERSION.SDK_INT<30 && root!=null) {
-            android.graphics.Rect visible=new android.graphics.Rect(); getWindow().getDecorView().getWindowVisibleDisplayFrame(visible);
-            if(getWindow().getDecorView().getHeight()-visible.height()>dp(180)) {
-                ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(root.getWindowToken(),0); return;
-            }
-        }
-        if(web!=null && web.canGoBack())web.goBack();else if(web!=null)leaveWorkspace();else super.onBackPressed(); }
+        if (web != null) {
+            android.webkit.WebBackForwardList history = web.copyBackForwardList();
+            String[] urls = new String[history.getSize()];
+            for (int i = 0; i < urls.length; i++) urls[i] = history.getItemAtIndex(i).getUrl();
+            int offset = BackHistory.previousOffset(endpoint, history.getCurrentIndex(), urls);
+            if (offset < 0) web.goBackOrForward(offset); else leaveWorkspace();
+        } else super.onBackPressed();
+    }
     @Override public void onBackPressed(){ goBack(); }
-    @Override public void onConfigurationChanged(Configuration config){ super.onConfigurationChanged(config); if(root!=null)root.requestApplyInsets(); }
+    @Override protected void onResume(){ super.onResume(); resumed=true; scheduleAppearanceSync(); }
+    @Override protected void onPause(){ resumed=false; if(root!=null)root.removeCallbacks(appearanceSync); super.onPause(); }
+    @Override public void onConfigurationChanged(Configuration config){ super.onConfigurationChanged(config); if(root!=null)root.requestApplyInsets(); scheduleAppearanceSync(); }
     @Override protected void onSaveInstanceState(Bundle state){
         if(address!=null && web==null){ lastAddress=Endpoint.trim(address.getText().toString());lastMode=mode(); }
         state.putString("url",lastAddress);state.putString("mode",lastMode);super.onSaveInstanceState(state);
@@ -449,5 +547,5 @@ public final class MainActivity extends Activity {
         });
     }
     private void toast(String message){ if(!destroyed)Toast.makeText(this,message,Toast.LENGTH_LONG).show(); }
-    @Override protected void onDestroy(){ destroyed=true;generation++;if(web!=null){web.stopLoading();web.destroy();web=null;}worker.shutdownNow();super.onDestroy(); }
+    @Override protected void onDestroy(){ destroyed=true;resumed=false;generation++;if(root!=null)root.removeCallbacks(appearanceSync);updateBackCallback();if(web!=null){web.stopLoading();web.destroy();web=null;}worker.shutdownNow();super.onDestroy(); }
 }

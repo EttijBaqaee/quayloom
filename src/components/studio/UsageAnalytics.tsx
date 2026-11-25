@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import './usageAnalyticsCards.css'
 import { useSettings } from '../../services/settings.js'
 import { useUiText } from '../../i18n/ui.js'
 import { adminMessages } from '../../i18n/admin.en.js'
@@ -46,6 +47,35 @@ function GroupCards({ groups, kind, filters }: { groups: AnalyticsGroup[]; kind:
     return <article style={card} key={JSON.stringify([group.owner, group.providerId, group.modelId])}><strong>{name}</strong><SummaryLine summary={group} /><p style={muted}>{t('输入 {input} / 输出 {output} · 缓存 {cache}', { input: count(group.actualUsage.inputTokens.total), output: count(group.actualUsage.outputTokens.total), cache: percent(group.actualUsage.cacheHitRate.value) })}</p><p style={muted}>{t('输入缺失 {input} · 输出缺失 {output} · 缓存读取缺失 {read} · 创建缺失 {creation}', { input: group.actualUsage.inputTokens.missing, output: group.actualUsage.outputTokens.missing, read: group.actualUsage.cacheReadTokens.missing, creation: group.actualUsage.cacheCreationTokens.missing })}</p></article>
   })}</div>
 }
+function JobUsageCard({ item, filters }: { item: UsageAnalyticsResponse['details']['items'][number]; filters: UsageAnalyticsResponse['filters'] }) {
+  const t = useUiText(adminMessages)
+  const model = filters.models.find(model => model.id === item.modelId && model.providerId === item.providerId)
+  const knownStatus = Object.hasOwn(status, item.status) ? item.status : 'unknown'
+  // Keep full identifiers available in the disclosure; only the primary model is abbreviated visually.
+  const fullLabel = (id: string | null, name?: string) => !id ? t('未知') : name ? `${name} · ${id}` : id
+  return <article className="ua-job-card">
+    <header className="ua-job-heading">
+      <strong className="ua-job-status" data-status={knownStatus}>{t(status[knownStatus])}</strong>
+      <span className="ua-job-model" title={model?.name || item.modelId || t('未知')}>{model?.name || item.modelId || t('未知')}</span>
+    </header>
+    <p className="ua-job-time"><time>{time(item.startedAt)}</time>{t(' · 上海时间')}</p>
+    <p className="ua-job-tokens"><span>{t('输入 {count}', { count: count(item.inputTokens) })}</span><span>{t('输出 {count}', { count: count(item.outputTokens) })}</span></p>
+    {!item.actualUsageEligible && <p className="ua-job-note">{t('未进入终态，不计真实用量汇总')}</p>}
+    <details className="ua-job-details">
+      <summary>{t('身份、渠道与完整用量')}</summary>
+      <dl>
+        <div><dt>{t('模型')}</dt><dd>{fullLabel(item.modelId, model?.name)}</dd></div>
+        <div><dt>{t('渠道')}</dt><dd>{fullLabel(item.providerId, filters.providers.find(provider => provider.id === item.providerId)?.name)}</dd></div>
+        <div><dt>{t('使用码 / 管理员')}</dt><dd>{fullLabel(item.owner, filters.owners.find(owner => owner.id === item.owner)?.name)}</dd></div>
+        <div><dt>{t('任务 ID')}</dt><dd>{item.id || t('未知')}</dd></div>
+        <div><dt>{t('真实输入 Token')}</dt><dd>{count(item.inputTokens)}</dd></div>
+        <div><dt>{t('真实输出 Token')}</dt><dd>{count(item.outputTokens)}</dd></div>
+        <div><dt>{t('缓存读取 Token')}</dt><dd>{count(item.cacheReadTokens)}</dd></div>
+        <div><dt>{t('缓存创建 Token')}</dt><dd>{count(item.cacheCreationTokens)}</dd></div>
+      </dl>
+    </details>
+  </article>
+}
 /** Administrator-only independent view. Mount once in the administrator page. */
 export function UsageAnalytics() {
   const principal = useStudio(state => state.principal)
@@ -86,7 +116,9 @@ function AnalyticsContent() {
       {data.scope.undatedRetainedJobs > 0 && <p style={muted}>{t('另有 {count} 个留存任务无有效开始时间，无法归入日期范围，未计入（按当前身份过滤，不应用渠道/模型过滤）。', { count: count(data.scope.undatedRetainedJobs) })}</p>}
       <details style={{ marginTop: 16 }} open><summary style={{ cursor: 'pointer', fontWeight: 600 }}>{t('按天趋势')}</summary><div style={{ ...grid, marginTop: 10 }}>{data.daily.map(item => <article key={item.date} style={card}><strong>{item.date}</strong><div role="img" aria-label={t('{date} 请求 {count}', { date: item.date, count: item.requests })} style={{ height: 5, margin: '8px 0', background: '#8883', borderRadius: 3 }}><div style={{ width: `${item.requests / maxRequests * 100}%`, height: '100%', background: '#4d6bfe', borderRadius: 3 }} /></div><SummaryLine summary={item} /><p style={muted}>{t('输入 {input} / 输出 {output} · 缓存 {cache}', { input: count(item.actualUsage.inputTokens.total), output: count(item.actualUsage.outputTokens.total), cache: percent(item.actualUsage.cacheHitRate.value) })}</p><p style={muted}>{t('输入缺失 {input} · 输出缺失 {output} · 缓存读取缺失 {read} · 创建缺失 {creation}', { input: item.actualUsage.inputTokens.missing, output: item.actualUsage.outputTokens.missing, read: item.actualUsage.cacheReadTokens.missing, creation: item.actualUsage.cacheCreationTokens.missing })}</p></article>)}</div></details>
       <section style={{ marginTop: 16 }} aria-label={t('用量分组')}><label>{t('分组方式')}<select style={{ ...control, margin: '8px 0' }} value={kind} onChange={event => setKind(event.target.value as typeof kind)}><option value="providers">{t('按渠道')}</option><option value="models">{t('按渠道 / 模型')}</option><option value="owners">{t('按使用码 / 管理员')}</option></select></label><GroupCards groups={data.groups[kind]} kind={kind} filters={data.filters} />{!data.groups[kind].length && <p>{t('此范围暂无留存任务。')}</p>}</section>
-      <section style={{ marginTop: 16 }} aria-label={t('任务用量明细')}><h3 style={{ fontSize: 16 }}>{t('任务明细（共 {count} 条）', { count: count(data.details.total) })}</h3><div style={grid}>{data.details.items.map(item => <article key={JSON.stringify([item.owner, item.id])} style={card}><strong>{t(status[item.status])}</strong><p style={muted}>{time(item.startedAt)}{t(' · 上海时间')}</p><p style={muted}>{displayLabel(t, data.filters, 'providers', item.providerId)} / {displayLabel(t, data.filters, 'models', item.modelId, item.providerId)}</p><p style={muted}>{displayLabel(t, data.filters, 'owners', item.owner)}{t(' · 任务 {id}', { id: item.id || t('未知') })}</p><p style={muted}>{t('输入 {input} / 输出 {output} · 缓存读取 {read} / 创建 {creation}', { input: count(item.inputTokens), output: count(item.outputTokens), read: count(item.cacheReadTokens), creation: count(item.cacheCreationTokens) })}</p>{!item.actualUsageEligible && <small>{t('未进入终态，不计真实用量汇总')}</small>}</article>)}</div>{!data.details.items.length && <p>{t('暂无明细。')}</p>}
+      <section style={{ marginTop: 16 }} aria-label={t('任务用量明细')}><h3 style={{ fontSize: 16, marginBottom: 6 }}>{t('任务明细（共 {count} 条）', { count: count(data.details.total) })}</h3>
+        <p style={muted}>{t('输入 / 输出单位为 Token；— 表示未知。展开可查看身份、完整 ID 和缓存用量。')}</p>
+        <div className="ua-job-grid">{data.details.items.map(item => <JobUsageCard key={JSON.stringify([item.owner, item.id])} item={item} filters={data.filters} />)}</div>{!data.details.items.length && <p>{t('暂无明细。')}</p>}
         <nav aria-label={t('用量明细分页')} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12 }}><button style={button} type="button" disabled={loading || query.offset === 0} onClick={() => setQuery({ ...query, offset: Math.max(0, query.offset - 25) })}>{t('上一页')}</button><span style={muted}>{t('第 {page} 页 · 每页 25 条', { page: Math.floor(query.offset / 25) + 1 })}</span><button style={button} type="button" disabled={loading || !data.details.hasMore} onClick={() => setQuery({ ...query, offset: query.offset + 25 })}>{t('下一页')}</button></nav>
       </section>
     </>}

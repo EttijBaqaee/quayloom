@@ -19,7 +19,7 @@ import {
   useSettings,
 } from '../../services/settings.js'
 import { useIsMobile } from '../../app/viewport.js'
-import { inspectSendAttachments, sendMessage, sendTextOnlyCopy, stopReply, useChatStore } from '../../services/chat/store.js'
+import { inspectSendAttachments, selectChatModel, sendMessage, sendTextOnlyCopy, stopReply, useChatStore } from '../../services/chat/store.js'
 import { AttachmentCompatibilityDialog } from '../studio/AttachmentCompatibilityDialog.js'
 import type { AttachmentCompatibility } from '../../services/chat/attachmentCompatibility.js'
 import {
@@ -238,7 +238,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
             if (Object.keys(useChatStore.getState().streaming).length || Object.values(useUploads.getState().tasks).some(task => task.status === 'uploading')) {
               setCapabilityError(tUi('上传或回复进行中，请完成后再切换模型。')); return
             }
-            stopReadAloud(); useStudio.setState({ selection }); setCompatibility(null)
+            stopReadAloud(); selectChatModel(selection); setCompatibility(null)
           } catch (error) { setCapabilityError(error instanceof Error ? error.message : tUi('附件检查失败，请重试。')) }
           finally { sendInProgress.current = false; if (mounted.current) { setInspecting(false) } }
         }}

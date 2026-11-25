@@ -1,11 +1,11 @@
-import { studioApi, StudioError } from '../studio.js'
+import { studioApi, StudioError, useStudio } from '../studio.js'
 import type { Session, SessionSummary } from './types.js'
 
 const revisions = new Map<string, number>()
 const writes = new Map<string, Promise<void>>()
 export type ServerJob = { id: string; sessionId: string; replyId: string; status?: 'running' | 'done' | 'stopped' | 'error'; session?: Session }
 export const remoteApi = <T>(route: string, init: RequestInit = {}) => studioApi<T>('/chat' + route, { ...init, signal: init.signal ?? AbortSignal.timeout(15000) })
-export const rememberRevision = (session: Session) => { revisions.set(session.id, session.revision ?? 0); return session }
+export const rememberRevision = (session: Session) => { revisions.set(session.id, Math.max(revisions.get(session.id) ?? 0, session.revision ?? 0)); return session }
 export const sessionRevision = (id: string) => revisions.get(id) ?? 0
 export const listRemoteSessions = () => remoteApi<{ sessions: SessionSummary[]; jobs: ServerJob[] }>('/sessions')
 export const loadRemoteSession = async (id: string): Promise<Session | undefined> => {
@@ -20,6 +20,21 @@ export const saveRemoteSession = (session: Session, migrate = false): Promise<vo
   })
   writes.set(session.id, task)
   void task.finally(() => { if (writes.get(session.id) === task) {writes.delete(session.id)} }).catch(() => {})
+  return task
+}
+/** Serialized with full saves and job submission; only this field is written on the server. */
+export const saveRemoteModelSelection = (id: string, modelSelection: Session['modelSelection'], onSaved?: (session: Session) => void): Promise<void> => {
+  const principalId = useStudio.getState().principal?.id
+  const task = waitForSessionWrites(id).catch(() => {}).then(async () => {
+    if (!principalId || principalId !== useStudio.getState().principal?.id) { throw new Error('登录身份已变化') }
+    const result = await remoteApi<{ session: Session }>('/sessions/' + encodeURIComponent(id), {
+      method: 'PATCH', body: JSON.stringify({ modelSelection }),
+    })
+    rememberRevision(result.session)
+    onSaved?.(result.session)
+  })
+  writes.set(id, task)
+  void task.finally(() => { if (writes.get(id) === task) { writes.delete(id) } }).catch(() => {})
   return task
 }
 export const removeRemoteSession = async (id: string) => { await waitForSessionWrites(id); await remoteApi('/sessions/' + encodeURIComponent(id), { method: 'DELETE' }); revisions.delete(id) }

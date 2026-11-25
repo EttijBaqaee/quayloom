@@ -294,6 +294,9 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
     createdAt: time(file.inserted_at),
     updatedAt: time(file.updated_at),
     ...buildTree(file),
+    ...(file.model_selection !== undefined ? { modelSelection: file.model_selection && {
+      providerId: file.model_selection.provider_id, modelId: file.model_selection.model_id,
+    } } : {}),
   }
   const images = new Map<string, string>()
   for (const message of file.messages) {

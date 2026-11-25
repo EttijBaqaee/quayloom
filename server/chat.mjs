@@ -9,8 +9,15 @@ import { createResponsesRoundQuota } from './chat-quota.mjs'
 
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value)
 const summary = ({ id, title, createdAt, updatedAt, revision }) => ({ id, title, createdAt, updatedAt, revision })
+const validateModelSelection = value => {
+  if (value === null) return null
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !['providerId', 'modelId'].includes(key)) ||
+    !['providerId', 'modelId'].every(key => typeof value[key] === 'string' && value[key].length > 0 && value[key].length <= 512)) fail(400, 'Invalid model selection')
+  return { providerId: value.providerId, modelId: value.modelId }
+}
 export function validateSession(value) {
   if (!value || !validId(value.id) || typeof value.title !== 'string' || value.title.length > 1000 || !Number.isSafeInteger(value.createdAt) || !Number.isSafeInteger(value.updatedAt) || !Array.isArray(value.messages) || value.messages.length > 10000) fail(400, 'Invalid conversation')
+  if (value.modelSelection !== undefined) validateModelSelection(value.modelSelection)
   const ids = new Set()
   for (const message of value.messages) {
     if (!message || !validId(message.id) || ids.has(message.id) || !Number.isSafeInteger(message.createdAt)) fail(400, 'Invalid message')
@@ -318,6 +325,16 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
         if (req.method === 'PATCH') {
           const input = await authorizedJson(req, principal, 4096), session = load(owner, id)
           if (!session) fail(404, 'Conversation not found')
+          // Narrow owner-scoped metadata update: never replace messages, pin a title, or restart a job.
+          // Missing revision means field-level last-write-wins; supplied revisions retain normal CAS.
+          if (input && Object.hasOwn(input, 'modelSelection')) {
+            if (Object.keys(input).some(key => !['modelSelection', 'revision'].includes(key))) fail(400, 'Invalid model selection update')
+            const selection = validateModelSelection(input.modelSelection)
+            if (input.revision !== undefined) assertRevision(owner, id, input.revision)
+            session.modelSelection = selection
+            put(owner, session)
+            json(res, 200, { session: load(owner, id) }); return true
+          }
           if (typeof input?.title !== 'string' || input.title.length > 1000) fail(400, 'Invalid conversation title')
           // Explicit, owner-scoped repair only; GET never changes existing history.
           if (input.ifEmpty !== undefined && typeof input.ifEmpty !== 'boolean') fail(400, 'Invalid conditional title update')

@@ -116,6 +116,8 @@ export type Message = UserMessage | AssistantMessage
 export type Session = {
   /** 服务端乐观锁版本；浏览器仅缓存消息展示，生成任务由服务端持有。 */
   revision?: number
+  /** Exact composer target; null requires an explicit choice. Missing on legacy history. */
+  modelSelection?: import('../studio.js').ModelSelection | null
   id: string
   title: string
   createdAt: number

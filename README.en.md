@@ -1,4 +1,4 @@
-# Quayloom · 0.3.9
+# Quayloom · 0.3.10
 
 [![简体中文](https://img.shields.io/badge/简体中文-Readme-lightgrey)](README.md) [![English](https://img.shields.io/badge/English-Current-blue)](README.en.md) ![License](https://img.shields.io/badge/license-AGPL--3.0--only-green) ![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)
 
@@ -21,6 +21,8 @@ Quayloom is a self-hosted, multi-provider AI chat workspace built on the officia
 - **Project terms:** [License and credits](#license-and-credits) · [Privacy](#privacy) · [Disclaimer](#disclaimer)
 
 ## What's new
+
+Version **0.3.10** persists each conversation's exact provider and model, including explicit unsent choices, without silently replacing unavailable models. Administrator task details use compact cards with expandable complete IDs and cache usage. Responses search accepts API-backed sources internally while displaying only genuine URL citations; upstream `web_search` availability errors remain visible without automatic retries or model fallback. Android **0.2.2** removes the app's screenshot/recording restriction, improves system back handling and keyboard-first navigation, and synchronizes system-area backgrounds with the page theme while preserving encrypted remembered login and upgrade identity.
 
 Version **0.3.9** follows DSH's deterministic first-human title fallback on the server, without additional model calls. Native DeepSeek titles can supersede the fallback; explicit renames or clearing stay pinned across jobs and restarts. Models explicitly configured for Responses native search can request independent `web_fetch` to retrieve passive public page text, with no scripts, redirects or provider credentials. Each actual model round gets its own quota reservation and settlement, capped at four fetches / five model calls within a shared output budget. Cumulative usage is separate from current-round context occupancy. Grok support and existing model protocol settings are preserved.
 
@@ -48,7 +50,7 @@ Access codes currently allow **text and reasoning only**, not search, file or vo
 
 ### Prebuilt GHCR image
 
-Image: `ghcr.io/ettijbaqaee/quayloom:0.3.9`; rolling tag: `latest`; platform: `linux/amd64`.
+Image: `ghcr.io/ettijbaqaee/quayloom:0.3.10`; rolling tag: `latest`; platform: `linux/amd64`.
 
 This is the complete composition, identical to [compose.ghcr.yaml](compose.ghcr.yaml). Import it into 1Panel or use the repository file:
 
@@ -56,7 +58,7 @@ This is the complete composition, identical to [compose.ghcr.yaml](compose.ghcr.
 name: quayloom
 services:
   quayloom:
-    image: ghcr.io/ettijbaqaee/quayloom:0.3.9
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.10
     pull_policy: always
     init: true
     restart: unless-stopped
@@ -228,7 +230,7 @@ Only the server contacts the fixed `EttijBaqaee/quayloom` GitHub Releases endpoi
 
 ## Android
 
-The signed native client is **0.2.1**; native and workspace versions are independent. Download it from [GitHub Releases](https://github.com/EttijBaqaee/quayloom/releases/latest). The signing identity is preserved for upgrades.
+The signed native client is **0.2.2**; native and workspace versions are independent. Download it from [GitHub Releases](https://github.com/EttijBaqaee/quayloom/releases/latest). The signing identity is preserved for upgrades.
 
 Remember credentials is enabled by default. Only successful logins are saved using AndroidKeyStore and AES-GCM, scoped to the complete workspace address and login mode. Returning to that address fills the credential without submitting a login. Disable remembering or use sign out and clear device session to remove saved credentials. A key failure never falls back to plaintext. Uninstalling or clearing app data requires entering credentials again. Avoid remembering credentials on shared or untrusted devices.
 

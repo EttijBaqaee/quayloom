@@ -1,4 +1,4 @@
-# Quayloom · 0.3.9
+# Quayloom · 0.3.10
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md) ![License](https://img.shields.io/badge/license-AGPL--3.0--only-green) ![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)
 
@@ -15,10 +15,19 @@ Quayloom 是一款可自部署的多供应商 AI 聊天工作台，基于官方 
 
 **快速导航**
 
-- **了解项目**：[更新说明](#release-039) · [功能](#features) · [协议与供应商](#providers)
+- **了解项目**：[更新说明](#release-0310) · [功能](#features) · [协议与供应商](#providers)
 - **部署**：[Docker / 1Panel](#docker) · [源码启动](#development) · [详细部署说明](docs/DEPLOYMENT.md)
 - **使用**：[使用码说明](docs/ACCESS_CODES.md) · [会话与费用](#sessions) · [统计指标](#statistics) · [Android](#android)
 - **维护与条款**：[数据和备份](#backup) · [常见问题](#faq) · [许可与来源](#license) · [隐私说明](#privacy) · [免责声明](#disclaimer)
+
+<a id="release-0310"></a>
+
+## 0.3.10 更新说明
+
+- 会话保存精确的渠道与模型，刷新、切换会话或模型目录更新后恢复；未发送时的明确选择也会保存到服务端空会话。不可用模型不会静默降级到其他模型。
+- 管理页任务明细采用紧凑卡片，默认显示状态、模型、输入/输出 Token 和上海时间；展开查看身份、完整 ID 与缓存用量，筛选和分页不变。
+- 兼容 Responses 原生搜索的 API 来源，只把真实 URL 作为引用展示；上游不支持 `web_search` 时保留原始错误，不自动重试或切换模型。
+- Android 0.2.2 移除 App 的截图/录屏限制，优化系统滑动返回、键盘优先收起及真实网页历史返回，并让上下系统区域随页面明暗背景同步；保留包名、原签名升级与加密记住登录。
 
 <a id="release-039"></a>
 
@@ -100,13 +109,13 @@ pnpm start
 
 ### GHCR 预构建镜像
 
-镜像：`ghcr.io/ettijbaqaee/quayloom:0.3.9`，滚动标签：`latest`，平台：`linux/amd64`。可在 1Panel 拉取镜像后按以下编排部署，或保存为独立编排文件：
+镜像：`ghcr.io/ettijbaqaee/quayloom:0.3.10`，滚动标签：`latest`，平台：`linux/amd64`。可在 1Panel 拉取镜像后按以下编排部署，或保存为独立编排文件：
 
 ```yaml
 name: quayloom
 services:
   quayloom:
-    image: ghcr.io/ettijbaqaee/quayloom:0.3.9
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.10
     pull_policy: always
     init: true
     restart: unless-stopped
@@ -270,7 +279,7 @@ OpenAI 兼容图片由管理员上传到服务器，以身份和供应商隔离�
 
 ## Android 客户端
 
-正式签名安装包见 [GitHub Releases](https://github.com/EttijBaqaee/quayloom/releases/latest)。原生客户端 **0.2.1** 与工作台版本独立，沿用原有签名身份，可覆盖升级。
+正式签名安装包见 [GitHub Releases](https://github.com/EttijBaqaee/quayloom/releases/latest)。原生客户端 **0.2.2** 与工作台版本独立，沿用原有签名身份，可覆盖升级。
 
 “记住凭据”默认开启：只在登录成功后保存，使用 AndroidKeyStore + AES-GCM 加密，按完整工作台地址与登录方式隔离；重新打开或切换回相同地址时自动填入，但不会自动提交登录。关闭记住、或使用“退出并清除设备会话”可清除已保存凭据。密钥不可用时不退回明文保存；卸载或系统清除应用数据后需要重新输入。请勿在共用或不可信设备上启用。
 

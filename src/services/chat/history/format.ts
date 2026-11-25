@@ -28,6 +28,8 @@ export type SessionIndexEntry = {
 
 /** chat_sessions/{session_id}.json */
 export type SessionFile = {
+  /** Optional Quayloom extension; old v3 archives remain readable. */
+  model_selection?: { provider_id: string; model_id: string } | null
   id: string
   title: string | null
   pinned: boolean

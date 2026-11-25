@@ -269,5 +269,11 @@ export const readSessionFile: Read<SessionFile> = (value) => {
     inserted_at: time(item.inserted_at),
     updated_at: time(item.updated_at),
     messages: list(message)(item.messages),
+    ...('model_selection' in item ? { model_selection: nullable((value: unknown) => {
+      const target = record(value)
+      const provider_id = string(target.provider_id), model_id = string(target.model_id)
+      if (!provider_id.length || provider_id.length > 512 || !model_id.length || model_id.length > 512) { return invalid() }
+      return { provider_id, model_id }
+    })(item.model_selection) } : {}),
   }
 }

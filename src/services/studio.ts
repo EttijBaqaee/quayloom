@@ -23,10 +23,32 @@ export const useStudio = create<{
   principal: Principal | null
   providers: CatalogProvider[]
   selection: ModelSelection | null
+  /** True even for an unavailable/unknown historical target: catalog must not replace it. */
+  selectionResolved: boolean
   catalogError: string
-}>(() => ({ authenticated: null, principal: null, providers: [], selection: null, catalogError: '' }))
+}>(() => ({ authenticated: null, principal: null, providers: [], selection: null, selectionResolved: false, catalogError: '' }))
 
-export const sessionExpired = () => { clearPersonalSettings(); useStudio.setState({ authenticated: false, principal: null, providers: [], selection: null, catalogError: '' }) }
+let catalogSequence = 0
+let defaultSelection: ModelSelection | null = null
+const recentSelectionKey = (id: string) => `quayloom:${__BASE_PATH__}:model-selection:${id}`
+export const recentModelSelection = (): ModelSelection | null => {
+  const id = useStudio.getState().principal?.id
+  if (!id) { return null }
+  try {
+    const value = JSON.parse(localStorage.getItem(recentSelectionKey(id)) ?? 'null')
+    return value && typeof value.providerId === 'string' && value.providerId.length > 0 && value.providerId.length <= 512 &&
+      typeof value.modelId === 'string' && value.modelId.length > 0 && value.modelId.length <= 512
+      ? { providerId: value.providerId, modelId: value.modelId } : null
+  } catch { return null }
+}
+export const rememberModelSelection = (selection: ModelSelection) => {
+  const id = useStudio.getState().principal?.id
+  if (id) { try { localStorage.setItem(recentSelectionKey(id), JSON.stringify(selection)) } catch { /* optional local preference */ } }
+}
+export const restoreModelSelection = (selection: ModelSelection | null) => useStudio.setState({ selection, selectionResolved: true })
+export const newChatModelSelection = () => recentModelSelection() ?? defaultSelection
+
+export const sessionExpired = () => { catalogSequence++; defaultSelection = null; clearPersonalSettings(); useStudio.setState({ authenticated: false, principal: null, providers: [], selection: null, selectionResolved: false, catalogError: '' }) }
 export class StudioError extends Error {
   constructor(message: string, readonly status: number) { super(message); this.name = 'StudioError' }
 }
@@ -48,7 +70,12 @@ export async function checkSession() {
     const result = await studioApi<{ authenticated: boolean; principal: Principal }>('/auth/session')
     if (!bindHistoryPrincipal(result.principal.id)) { window.location.reload(); return }
     bindPersonalSettings(result.principal.id)
+    const previousId = useStudio.getState().principal?.id
     useStudio.setState({ authenticated: result.authenticated, principal: result.principal })
+    if (previousId !== result.principal.id) {
+      const selection = recentModelSelection()
+      useStudio.setState({ selection, selectionResolved: selection !== null })
+    }
   } catch (error) {
     if (error instanceof StudioError && error.status === 401) {return}
     throw error
@@ -65,15 +92,21 @@ export async function logout() {
 }
 
 export async function loadCatalog() {
+  const principalId = useStudio.getState().principal?.id, sequence = ++catalogSequence
   try {
     const result = await studioApi<{ providers: CatalogProvider[]; defaultModel: ModelSelection | null }>('/catalog')
-    const current = useStudio.getState().selection
+    if (sequence !== catalogSequence || principalId !== useStudio.getState().principal?.id) { return }
+    const state = useStudio.getState()
     const valid = (selection: ModelSelection | null) => selection && result.providers.some(p => p.id === selection.providerId && p.models.some(m => m.id === selection.modelId))
     const first = result.providers.find(p => p.models.length > 0)
-    const selection = valid(current) ? current : valid(result.defaultModel) ? result.defaultModel : first ? { providerId: first.id, modelId: first.models[0].id } : null
+    defaultSelection = valid(result.defaultModel) ? result.defaultModel : first ? { providerId: first.id, modelId: first.models[0].id } : null
+    // A removed/revoked target stays invalid. Never silently bill a different model.
+    const selection = state.selectionResolved || state.selection ? state.selection : defaultSelection
     useStudio.setState({ providers: result.providers, selection, catalogError: '' })
   } catch (error) {
-    useStudio.setState({ catalogError: error instanceof Error ? error.message : '模型目录加载失败' })
+    if (sequence === catalogSequence && principalId === useStudio.getState().principal?.id) {
+      useStudio.setState({ catalogError: error instanceof Error ? error.message : '模型目录加载失败' })
+    }
     throw error
   }
 }

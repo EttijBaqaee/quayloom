@@ -276,6 +276,9 @@ export const toSessionFile = (original: Session, exportImage: ExportImage): Sess
     inserted_at: iso(session.createdAt),
     updated_at: iso(session.updatedAt),
     messages,
+    ...(session.modelSelection !== undefined ? { model_selection: session.modelSelection && {
+      provider_id: session.modelSelection.providerId, model_id: session.modelSelection.modelId,
+    } } : {}),
   }
 }
 

@@ -89,8 +89,20 @@ export function responsesSearch(provider, enabled, bad) {
       if (value.queries !== undefined && (!Array.isArray(value.queries) || value.queries.some(x=>typeof x!=='string'))) bad('Invalid Responses search queries');
       const queries = value.queries?.length ? value.queries : (value.query !== undefined ? [value.query] : []);
       if (!queries.length) bad('Responses search action is missing queries');
-      if (value.sources !== undefined && (!Array.isArray(value.sources) || value.sources.some(x=>!record(x) || x.type!=='url'))) bad('Unsupported Responses search source');
-      return {input:{action:'search',...(value.query !== undefined ? {query:projection.text(value.query)} : {}),queries:queries.map(x=>projection.text(x))},results:(value.sources ?? []).map(x=>projection.result(x))};
+      if (value.sources !== undefined && !Array.isArray(value.sources)) bad('Invalid Responses search sources');
+      const results=[], apiSources=[];
+      for (const source of value.sources ?? []) {
+        if (!record(source)) bad('Invalid Responses search source');
+        if (source.type==='url') results.push(projection.result(source));
+        else if (source.type==='api') {
+          // Hosted search also returns named feeds (weather/finance/sports), not
+          // URLs. Retain their bounded identity for completed-snapshot checks,
+          // but never manufacture links or copy opaque provider fields to UI.
+          if (!identity(source.name) || !source.name.trim() || /[\x00-\x1f\x7f]/.test(source.name)) bad('Invalid Responses API search source');
+          apiSources.push(projection.text(source.name));
+        } else bad('Unsupported Responses search source');
+      }
+      return {input:{action:'search',...(value.query !== undefined ? {query:projection.text(value.query)} : {}),queries:queries.map(x=>projection.text(x))},results,...(apiSources.length ? {apiSources} : {})};
     }
     if (value.type === 'open_page') return {input:{action:'open_page',url:projection.url(value.url)},results:[]};
     if (value.type === 'find') return {input:{action:'find_in_page',url:projection.url(value.url),pattern:projection.text(value.pattern)},results:[]};

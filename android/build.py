@@ -37,7 +37,7 @@ for name in ('classes','test-classes','dex','generated','assets'):
     directory=(OUT/name).resolve();assert directory.parent==OUT and directory.name==name
     if directory.exists():shutil.rmtree(directory)
 if os.environ.get('QUAYLOOM_SOURCE_SHA256'):assert sourcehash==os.environ['QUAYLOOM_SOURCE_SHA256']
-version='0.2.1'
+version='0.2.2'
 gen=OUT/'generated/org/quayloom/android';gen.mkdir(parents=True,exist_ok=True)
 (gen/'BuildInfo.java').write_text('package org.quayloom.android; final class BuildInfo { static final String VERSION="'+version+'"; static final String SOURCE_SHA256="'+sourcehash+'"; }\n')
 assets=OUT/'assets';assets.mkdir(exist_ok=True);shutil.copyfile(source,assets/'source.zip')
@@ -49,15 +49,16 @@ run([JAVA/'bin/javac','--release','8','-encoding','UTF-8','-g:none','-classpath'
 # Optional development regressions; excluded from clean corresponding-source distribution.
 if (ROOT/'tests/EndpointTest.java').is_file():
     test=OUT/'test-classes';test.mkdir(exist_ok=True)
-    run([JAVA/'bin/javac','-encoding','UTF-8','-d',test,ROOT/'src/org/quayloom/android/Endpoint.java',ROOT/'src/org/quayloom/android/LoginProtocol.java',*sorted((ROOT/'tests').glob('*.java'))])
+    run([JAVA/'bin/javac','-encoding','UTF-8','-d',test,ROOT/'src/org/quayloom/android/Endpoint.java',ROOT/'src/org/quayloom/android/LoginProtocol.java',ROOT/'src/org/quayloom/android/BackHistory.java',*sorted((ROOT/'tests').glob('*.java'))])
     run([JAVA/'bin/java','-cp',test,'org.quayloom.android.EndpointTest'])
     run([JAVA/'bin/java','-cp',test,'org.quayloom.android.LoginProtocolTest'])
+    run([JAVA/'bin/java','-cp',test,'org.quayloom.android.BackHistoryTest'])
 jar=OUT/'classes.jar';fixed_zip(jar,[(str(p.relative_to(classes)),p.read_bytes(),zipfile.ZIP_DEFLATED) for p in classes.rglob('*.class')])
 dex=OUT/'dex';dex.mkdir(exist_ok=True);run([BT/'d8','--release','--min-api','26','--lib',ANDROID,'--output',dex,jar])
 with zipfile.ZipFile(linked) as z:entries=[(n,z.read(n),zipfile.ZIP_STORED if n=='resources.arsc' else zipfile.ZIP_DEFLATED) for n in z.namelist() if not n.endswith('/')]
 entries += [(p.name,p.read_bytes(),zipfile.ZIP_DEFLATED) for p in sorted(dex.glob('*.dex'))]
-raw=OUT/'Quayloom-0.2.1-unsigned.apk';fixed_zip(raw,entries)
-aligned=OUT/'Quayloom-0.2.1-aligned.apk';run([BT/'zipalign','-f','-P','16','4',raw,aligned]);run([BT/'zipalign','-c','-P','16','4',aligned])
+raw=OUT/'Quayloom-0.2.2-unsigned.apk';fixed_zip(raw,entries)
+aligned=OUT/'Quayloom-0.2.2-aligned.apk';run([BT/'zipalign','-f','-P','16','4',raw,aligned]);run([BT/'zipalign','-c','-P','16','4',aligned])
 if MODE=='sign':
     private=Path(os.environ['QUAYLOOM_SIGNING_DIR']).resolve()
     assert not private.is_relative_to(ROOT.parent) and not ROOT.parent.is_relative_to(private),'Signing directory must be outside the source tree and must not contain it'
@@ -69,7 +70,7 @@ if MODE=='sign':
         with os.fdopen(fd,'w') as f:f.write(secrets.token_urlsafe(48)+'\n')
         run([JAVA/'bin/keytool','-genkeypair','-keystore',key,'-storetype','PKCS12','-alias','quayloom','-keyalg','RSA','-keysize','3072','-sigalg','SHA256withRSA','-validity','10000','-dname','CN=Quayloom Android Release, O=Quayloom','-storepass:file',password,'-keypass:file',password])
         key.chmod(0o600)
-    signed=OUT/'Quayloom-0.2.1.apk'
+    signed=OUT/'Quayloom-0.2.2.apk'
     # PKCS12 key uses the store password; omit --key-pass so apksigner reuses it without consuming a second file line.
     run([BT/'apksigner','sign','--ks',key,'--ks-key-alias','quayloom','--ks-pass','file:'+str(password),'--v1-signing-enabled','false','--v2-signing-enabled','true','--v3-signing-enabled','true','--v4-signing-enabled','false','--out',signed,aligned])
     run([BT/'apksigner','verify','--verbose','--print-certs',signed]);run([BT/'zipalign','-c','-P','16','4',signed]);artifact=signed
