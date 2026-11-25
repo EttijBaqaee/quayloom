@@ -9,7 +9,7 @@ COPY . .
 RUN node scripts/package-source.mjs /tmp/quayloom-source.zip && pnpm build
 
 FROM node:24-bookworm-slim AS runtime
-LABEL org.opencontainers.image.title="Quayloom" org.opencontainers.image.version="0.3.8" org.opencontainers.image.licenses="AGPL-3.0-only" org.opencontainers.image.source="https://github.com/EttijBaqaee/quayloom"
+LABEL org.opencontainers.image.title="Quayloom" org.opencontainers.image.version="0.3.9" org.opencontainers.image.licenses="AGPL-3.0-only" org.opencontainers.image.source="https://github.com/EttijBaqaee/quayloom"
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=9810 DATA_DIR=/app/data
 WORKDIR /app
 COPY --from=build --chown=node:node /app/dist ./dist

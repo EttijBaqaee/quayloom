@@ -7,6 +7,7 @@ import { openStore, PRESETS } from './store.mjs'
 import { HttpError, fail, validateProvider, validateChat } from './validation.mjs'
 import * as defaultAdapters from './adapters.mjs'
 import { createQuotaLedger } from './quota.mjs'
+import { createResponsesRoundQuota } from './chat-quota.mjs'
 import { normalizeAccess, allowsModel } from './access.mjs'
 import { createServerChat } from './chat.mjs'
 import { createNotices } from './notices.mjs'
@@ -234,7 +235,7 @@ export function createApp(options = {}) {
           }
           body = images.resolve(principal.id, provider, body)
           adapters.validateChatRequest?.(provider, model, body)
-          const reservation = ledger.reserve(provider, model, body, { access: requestAccess })
+          const reservation = ledger.reserve(provider, model, adapters.chatQuotaBody?.(provider, model, body) ?? body, { access: requestAccess })
           privateUpstream = Boolean(requestAccess)
           let usage, completed = false, usageDelta = false
           const controller = new AbortController(); controllers.add(controller)
@@ -242,14 +243,15 @@ export function createApp(options = {}) {
           const abort = () => controller.abort(); res.on('close', abort)
           const timer = setTimeout(abort, Math.max(1, Math.min(10 * 60000, requestAccess?.expiresAt ? requestAccess.expiresAt - Date.now() : Infinity)))
           try {
-            const iterator = adapters.streamChat(provider, model, body, { signal: controller.signal })
+            const iterator = adapters.streamChat(provider, model, body, { signal: controller.signal, responsesRound: createResponsesRoundQuota({ store, ledger, reservation, provider, model, access: requestAccess }) })
             // Validate upstream and capabilities before committing the SSE status.
             const first = await iterator.next()
             if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError')
             res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' }); res.flushHeaders()
             const emit = async (event) => {
               if (event.type === 'message_start' && event.message?.usage) usage = { ...event.message.usage }
-              if (event.type === 'message_delta' && event.usage) { usage = { ...usage, ...event.usage }; usageDelta = true }
+              if (event.type === 'message_delta' && event.usage_incomplete === true) { usage = undefined; usageDelta = false }
+              else if (event.type === 'message_delta' && event.usage) { usage = { ...usage, ...event.usage }; usageDelta = true }
               if (event.type === 'message_stop') completed = true
               if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError')
               if (!res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`)) await once(res, 'drain', { signal: controller.signal })

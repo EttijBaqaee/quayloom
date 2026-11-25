@@ -128,6 +128,8 @@ export type ToolOpenStatus = 'WIP' | 'FINISHED' | 'FAILED'
 /** 边想边搜里打开的页面；页面信息同时为 null 时只有动作、没有内容 */
 export type ToolOpenFragment = {
   type: 'TOOL_OPEN'
+  /** Quayloom server fetch, not a native provider read/signature. */
+  tool_name?: 'web_fetch'
   status: ToolOpenStatus
   url: string | null
   title: string | null

@@ -1,7 +1,7 @@
 name: quayloom
 services:
   quayloom:
-    image: ghcr.io/ettijbaqaee/quayloom:0.3.8
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.9
     pull_policy: always
     init: true
     restart: unless-stopped

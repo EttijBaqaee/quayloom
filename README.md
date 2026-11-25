@@ -1,4 +1,4 @@
-# Quayloom · 0.3.8
+# Quayloom · 0.3.9
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md) ![License](https://img.shields.io/badge/license-AGPL--3.0--only-green) ![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)
 
@@ -15,10 +15,19 @@ Quayloom 是一款可自部署的多供应商 AI 聊天工作台，基于官方 
 
 **快速导航**
 
-- **了解项目**：[更新说明](#release-038) · [功能](#features) · [协议与供应商](#providers)
+- **了解项目**：[更新说明](#release-039) · [功能](#features) · [协议与供应商](#providers)
 - **部署**：[Docker / 1Panel](#docker) · [源码启动](#development) · [详细部署说明](docs/DEPLOYMENT.md)
 - **使用**：[使用码说明](docs/ACCESS_CODES.md) · [会话与费用](#sessions) · [统计指标](#statistics) · [Android](#android)
 - **维护与条款**：[数据和备份](#backup) · [常见问题](#faq) · [许可与来源](#license) · [隐私说明](#privacy) · [免责声明](#disclaimer)
+
+<a id="release-039"></a>
+
+## 0.3.9 更新说明
+
+- 参考 DSH，服务端用第一条有效用户文本生成兜底标题，无额外模型请求；DeepSeek 原生标题可优先替换，手动命名或清空跨任务、重启保持优先。
+- 为明确启用 Responses 原生搜索的模型增加独立 `web_fetch`，按需读取公网网页正文；不执行脚本、不跳转、不携带供应商密钥，不把原生搜索空来源当作已读取正文。
+- 每次实际模型调用分别预留和结算额度，最多 4 次抓取 / 5 轮调用，共享输出预算；累计费用用量与当前轮上下文占用分开统计。
+- 保留 Grok（xAI）接入及全部现有模型协议设置。
 
 <a id="release-038"></a>
 
@@ -91,13 +100,13 @@ pnpm start
 
 ### GHCR 预构建镜像
 
-镜像：`ghcr.io/ettijbaqaee/quayloom:0.3.8`，滚动标签：`latest`，平台：`linux/amd64`。可在 1Panel 拉取镜像后按以下编排部署，或保存为独立编排文件：
+镜像：`ghcr.io/ettijbaqaee/quayloom:0.3.9`，滚动标签：`latest`，平台：`linux/amd64`。可在 1Panel 拉取镜像后按以下编排部署，或保存为独立编排文件：
 
 ```yaml
 name: quayloom
 services:
   quayloom:
-    image: ghcr.io/ettijbaqaee/quayloom:0.3.8
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.9
     pull_policy: always
     init: true
     restart: unless-stopped

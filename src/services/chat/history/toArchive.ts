@@ -46,6 +46,16 @@ const userFragments = (message: UserMessage, exportImage: ExportImage): Fragment
 
 const toolFragment = (tool: ServerToolUseBlock, result: ReplyBlock | undefined): Fragment[] => {
   const { input } = tool
+  if (tool.name === 'web_fetch' && input.action === 'read_link') {
+    const content = result?.type === 'web_fetch_tool_result' ? result.content : undefined
+    const page = content?.type === 'web_fetch_result' ? content : undefined
+    return [{
+      type: 'TOOL_OPEN', tool_name: 'web_fetch',
+      status: !content ? 'WIP' : page ? 'FINISHED' : 'FAILED',
+      url: input.url || page?.url || null, title: page?.content.title ?? null,
+      snippet: page?.content.source.data ?? null, published_at: null,
+    }]
+  }
   if (input.action === 'search') {
     const items = result?.type === 'web_search_tool_result' ? result.content : []
     return [

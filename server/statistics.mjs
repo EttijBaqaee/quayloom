@@ -49,7 +49,9 @@ export function createRunStatistics({ job, provider, model, body, sequence, trig
     const now = clock()
     Object.assign(run, statisticsUsage(usage))
     if (!outputCountCurrent) run.outputTokens = null
-    run.contextUsageRatio = contextWindowTokens && run.inputTokens !== null ? run.inputTokens / contextWindowTokens : null
+    // Multi-round totals describe cost, not a single request's context occupancy.
+    const contextInput = Object.hasOwn(usage || {}, 'context_input_tokens') ? token(usage.context_input_tokens) : run.inputTokens
+    run.contextUsageRatio = contextWindowTokens && contextInput !== null ? contextInput / contextWindowTokens : null
     run.ttftMs = first === null || modelStart === null ? null : elapsed(first, modelStart)
     run.modelDurationMs = modelStart === null ? null : elapsed(modelEnd ?? now, modelStart)
     if (!finished) run.totalDurationMs = elapsed(now, monotonicStart)
@@ -68,7 +70,8 @@ export function createRunStatistics({ job, provider, model, body, sequence, trig
     observe(event) {
       if (finished) return
       if (event.type === 'message_start' && event.message?.usage) { usage = { ...event.message.usage }; outputCountCurrent = token(usage.output_tokens) !== null }
-      if (event.type === 'message_delta' && event.usage) {
+      if (event.type === 'message_delta' && event.usage_incomplete === true) { usage = undefined; outputCountCurrent = false }
+      else if (event.type === 'message_delta' && event.usage) {
         usage = { ...usage, ...event.usage }
         if (Object.hasOwn(event.usage, 'output_tokens')) outputCountCurrent = token(event.usage.output_tokens) !== null
       }

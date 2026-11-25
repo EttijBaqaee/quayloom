@@ -4,6 +4,8 @@ import { allowsModel } from './access.mjs'
 import { performance } from 'node:perf_hooks'
 import { createRunStatistics, interruptedStatistics } from './statistics.mjs'
 import { isOpaqueReasoning } from './adapters.mjs'
+import { deriveSessionFallback, normalizeSessionTitle } from './titles.mjs'
+import { createResponsesRoundQuota } from './chat-quota.mjs'
 
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value)
 const summary = ({ id, title, createdAt, updatedAt, revision }) => ({ id, title, createdAt, updatedAt, revision })
@@ -44,7 +46,7 @@ const finishReply = (reply, status, error) => ({ ...reply, status, ...(error ? {
 export function projectEvent(reply, event, indexes, now = Date.now()) {
   const next = { ...reply, status: 'streaming' }
   if (event.type === 'message_start') next.usage = event.message?.usage ?? next.usage
-  if (event.type === 'message_delta') { next.stopReason = event.delta?.stop_reason; next.stopDetails = event.delta?.stop_details; next.usage = event.usage ?? next.usage }
+  if (event.type === 'message_delta') { next.stopReason = event.delta?.stop_reason; next.stopDetails = event.delta?.stop_details; next.usage = event.usage_incomplete === true ? undefined : event.usage ?? next.usage }
   if (event.type === 'content_block_start') {
     indexes.delete(event.index)
     const block = event.content_block
@@ -77,11 +79,12 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
     CREATE INDEX IF NOT EXISTS chat_jobs_session ON chat_jobs(owner,session_id);
     CREATE UNIQUE INDEX IF NOT EXISTS chat_jobs_active ON chat_jobs(owner,session_id) WHERE status='running';`)
   if (!db.prepare('PRAGMA table_info(chat_jobs)').all().some(column => column.name === 'metrics')) db.exec('ALTER TABLE chat_jobs ADD COLUMN metrics TEXT')
+  if (!db.prepare('PRAGMA table_info(chat_sessions)').all().some(column => column.name === 'title_manual')) db.exec('ALTER TABLE chat_sessions ADD COLUMN title_manual INTEGER NOT NULL DEFAULT 0')
   const load = (owner, id) => { const row = db.prepare('SELECT snapshot,revision FROM chat_sessions WHERE owner=? AND id=?').get(owner, id); return row ? { ...JSON.parse(row.snapshot), revision: row.revision } : null }
   const put = (owner, session) => {
     const revision = (load(owner, session.id)?.revision || 0) + 1
     const { revision: _revision, ...snapshot } = session
-    db.prepare(`INSERT INTO chat_sessions VALUES(?,?,?,?,?,?,?) ON CONFLICT(owner,id) DO UPDATE SET title=excluded.title,updated_at=excluded.updated_at,revision=excluded.revision,snapshot=excluded.snapshot`).run(owner, session.id, session.title, session.createdAt, session.updatedAt, revision, JSON.stringify(snapshot))
+    db.prepare(`INSERT INTO chat_sessions(owner,id,title,created_at,updated_at,revision,snapshot) VALUES(?,?,?,?,?,?,?) ON CONFLICT(owner,id) DO UPDATE SET title=excluded.title,updated_at=excluded.updated_at,revision=excluded.revision,snapshot=excluded.snapshot`).run(owner, session.id, session.title, session.createdAt, session.updatedAt, revision, JSON.stringify(snapshot))
     return revision
   }
   // A process restart cannot safely replay an already billed upstream request.
@@ -116,7 +119,7 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
   const active = (owner, id) => db.prepare("SELECT id FROM chat_jobs WHERE owner=? AND session_id=? AND status='running'").get(owner, id)
   const assertRevision = (owner, id, revision) => { if (!Number.isSafeInteger(revision) || revision !== (load(owner, id)?.revision || 0)) fail(409, '会话已在其他页面更新，请刷新后重试') }
   const responseFor = (job, after) => { const session = load(job.owner, job.session_id); return { id: job.id, sessionId: job.session_id, replyId: job.reply_id, status: job.status, ...(session && String(session.revision) !== after ? { session } : {}) } }
-  const run = async (job, provider, model, body, access, controller, metrics, outcome) => {
+  const run = async (job, provider, model, body, access, controller, metrics, outcome, reservation) => {
     let reply = load(job.owner, job.session_id).messages.find(m => m.id === job.reply_id)
     const indexes = new Map(); let usage, usageDelta = false, completed = false, checkpoint = 0, size = 0
     let status = 'error', checkpointTimer, finalMetrics
@@ -137,18 +140,23 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
     const timer = setTimeout(() => controller.abort(), Math.max(1, Math.min(600000, access?.expiresAt ? access.expiresAt - Date.now() : Infinity)))
     try {
       metrics.startModel()
-      for await (const event of adapters.streamChat(provider, model, body, { signal: controller.signal })) {
+      for await (const event of adapters.streamChat(provider, model, body, { signal: controller.signal, responsesRound: createResponsesRoundQuota({ store, ledger, reservation, provider, model, access }) })) {
         controller.signal.throwIfAborted()
         size += Buffer.byteLength(JSON.stringify(event)); if (size > outputLimit) throw Error('生成内容超过会话大小限制')
         if (event.type === 'error') throw Error(event.error?.message || 'Upstream stream failed')
         if (event.type === 'message_start' && event.message?.usage) usage = { ...event.message.usage }
-        if (event.type === 'message_delta' && event.usage) { usage = { ...usage, ...event.usage }; usageDelta = true }
+        if (event.type === 'message_delta' && event.usage_incomplete === true) { usage = undefined; usageDelta = false }
+        else if (event.type === 'message_delta' && event.usage) { usage = { ...usage, ...event.usage }; usageDelta = true }
         if (event.type === 'message_stop') completed = true
         metrics.observe(event)
         reply = projectEvent(reply, event, indexes)
-        if (event.type === 'message_delta' && body.title?.enabled && !controller.manualTitle && event.delta?.title?.trim()) {
-          const session = load(job.owner, job.session_id)
-          if (session && !session.title) { session.title = event.delta.title.trim().slice(0, 1000); put(job.owner, session) }
+        if (event.type === 'message_delta' && body.title?.enabled && !controller.manualTitle && typeof event.delta?.title === 'string') {
+          const title = normalizeSessionTitle(event.delta.title)
+          const session = title && load(job.owner, job.session_id)
+          // A native provider title may replace this job's fallback, never a rename.
+          if (session && (!session.title || session.title === controller.fallbackTitle)) {
+            session.title = title; put(job.owner, session); controller.fallbackTitle = undefined
+          }
         }
         if (performance.now() - checkpoint >= 200) { clearTimeout(checkpointTimer); checkpointTimer = undefined; persist() }
         else if (!checkpointTimer) checkpointTimer = setTimeout(() => {
@@ -200,14 +208,21 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
     adapters.validateChatRequest?.(provider, model, body)
     const controller = new AbortController(), job = { owner: principal.id, id: input.id, session_id: session.id, reply_id: reply.id, status: 'running', request_hash: hash }
     const previous = load(principal.id, session.id)
+    controller.manualTitle = Boolean(db.prepare('SELECT title_manual FROM chat_sessions WHERE owner=? AND id=?').get(principal.id, session.id)?.title_manual)
+    if (controller.manualTitle && body.title?.enabled) body = { ...body, title: { ...body.title, enabled: false } }
     const earlierReplyJob = db.prepare('SELECT 1 FROM chat_jobs WHERE owner=? AND session_id=? AND reply_id=?').get(principal.id, session.id, reply.id)
     const hasPrefix = previous?.messages.some(m => m.id === reply.id && m.blocks?.length) && reply.blocks.length > 0
     const hasSibling = session.messages.some(m => m.role === 'assistant' && m.id !== reply.id && m.parentId === reply.parentId)
     const trigger = input.trigger ?? (earlierReplyJob || hasPrefix ? 'continue' : hasSibling ? 'regenerate' : 'send')
     const sequence = db.prepare('SELECT COUNT(*) AS n FROM chat_jobs WHERE owner=? AND session_id=?').get(principal.id, session.id).n + 1
     const metrics = statisticsFactory({ job, provider, model, body, sequence, trigger, startedAt, monotonicStart })
-    const reservation = ledger.reserve(provider, model, body, { access })
+    const reservation = ledger.reserve(provider, model, adapters.chatQuotaBody?.(provider, model, body) ?? body, { access })
     try {
+      // Persist DSH-style first-human fallback before starting any upstream work.
+      if (body.title?.enabled && !controller.manualTitle && !session.title) {
+        const fallback = deriveSessionFallback(session)
+        if (fallback) { session.title = fallback; controller.fallbackTitle = fallback }
+      }
       db.exec('BEGIN IMMEDIATE')
       try { put(principal.id, session); db.prepare('INSERT INTO chat_jobs(owner,id,session_id,reply_id,status,request_hash,metrics) VALUES(?,?,?,?,?,?,?)').run(job.owner, job.id, job.session_id, job.reply_id, job.status, hash, JSON.stringify(metrics.snapshot())); db.exec('COMMIT') } catch (error) { db.exec('ROLLBACK'); throw error }
     } catch (error) {
@@ -220,7 +235,7 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
     const task = Promise.resolve().then(async () => {
       const outcome = { completed: false, usage: undefined }
       try {
-        await run(job, provider, model, body, access, controller, metrics, outcome)
+        await run(job, provider, model, body, access, controller, metrics, outcome, reservation)
       } catch (error) {
         // Metrics/checkpoint/initialization failures must not leave a permanently
         // running job. Never replay upstream, and never expose an internal error.
@@ -304,10 +319,20 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
           const input = await authorizedJson(req, principal, 4096), session = load(owner, id)
           if (!session) fail(404, 'Conversation not found')
           if (typeof input?.title !== 'string' || input.title.length > 1000) fail(400, 'Invalid conversation title')
+          // Explicit, owner-scoped repair only; GET never changes existing history.
+          if (input.ifEmpty !== undefined && typeof input.ifEmpty !== 'boolean') fail(400, 'Invalid conditional title update')
+          if (input.revision !== undefined || input.ifEmpty === true) assertRevision(owner, id, input.revision)
+          if (input.ifEmpty === true && session.title) fail(409, 'Conversation already has a title')
           session.title = input.title
           const job = active(owner, id), controller = job && running.get(owner + ':' + job.id)
+          db.exec('BEGIN IMMEDIATE')
+          try {
+            put(owner, session)
+            db.prepare('UPDATE chat_sessions SET title_manual=1 WHERE owner=? AND id=?').run(owner, id)
+            db.exec('COMMIT')
+          } catch (error) { db.exec('ROLLBACK'); throw error }
           if (controller) controller.manualTitle = true
-          put(owner, session); json(res, 200, { session: load(owner, id) }); return true
+          json(res, 200, { session: load(owner, id) }); return true
         }
         if (req.method === 'DELETE') {
           if (active(owner, id)) fail(409, '请先停止生成再删除会话')

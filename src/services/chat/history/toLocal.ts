@@ -48,12 +48,13 @@ const toolBlocks = (
   id: string,
   input: ServerToolUseBlock['input'],
   kind: ServerToolUseBlock['kind'],
-  result?: ReplyBlock
+  result?: ReplyBlock,
+  name?: ServerToolUseBlock['name']
 ): ReplyBlock[] => [
   {
     type: 'server_tool_use',
     id,
-    name: kind === 'read_link' ? 'deepseek_read_url' : 'web_search',
+    name: name ?? (kind === 'read_link' ? 'deepseek_read_url' : 'web_search'),
     input,
     kind,
     caller: { type: 'direct' },
@@ -74,13 +75,14 @@ const fetchResult = (
 const fetched = (
   url: string,
   title: string | null,
-  publishedAt: string | null
+  publishedAt: string | null,
+  text = ''
 ): WebFetchResult => ({
   type: 'web_fetch_result',
   url,
   content: {
     type: 'document',
-    source: { type: 'text', media_type: 'text/plain', data: '' },
+    source: { type: 'text', media_type: 'text/plain', data: text },
     title,
   },
   published_at: publishedAt,
@@ -151,23 +153,29 @@ const toBlocks = (fragments: Fragment[], messageId: string): ReplyBlock[] => {
                         })),
               }
         )
-      case 'TOOL_OPEN':
+      case 'TOOL_OPEN': {
+        const serverFetch = item.tool_name === 'web_fetch'
         if (!item.url || !isWebUrl(item.url)) {
           return []
         }
         return toolBlocks(
           id,
-          { action: 'open_page', url: item.url },
-          'deep_search',
+          { action: serverFetch ? 'read_link' : 'open_page', url: item.url },
+          serverFetch ? 'read_link' : 'deep_search',
           item.status === 'WIP'
             ? undefined
-            : fetchResult(
-                id,
-                item.status === 'FINISHED'
-                  ? fetched(item.url, item.title, item.published_at)
-                  : unavailable
-              )
+            : {
+                ...fetchResult(
+                  id,
+                  item.status === 'FINISHED'
+                    ? fetched(item.url, item.title, serverFetch ? null : item.published_at, serverFetch ? item.snippet ?? '' : '')
+                    : unavailable
+                ),
+                kind: serverFetch ? 'read_link' : 'deep_search',
+              },
+          serverFetch ? 'web_fetch' : undefined
         )
+      }
       case 'TOOL_FIND':
         return toolBlocks(
           id,

@@ -143,6 +143,7 @@ const readFragment: Read<Fragment> = (value) => {
     case 'TOOL_OPEN':
       return {
         type,
+        ...('tool_name' in item ? { tool_name: oneOf('web_fetch')(item.tool_name) } : {}),
         status: searchStatus(item.status),
         url: nullable(string)(item.url),
         title: nullable(string)(item.title),

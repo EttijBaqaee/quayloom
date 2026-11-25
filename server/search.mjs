@@ -14,8 +14,13 @@ export function normalizedSearchHistory(content) {
   const calls=new Map(), results=new Set();
   for (const block of content) {
     if (block?.type==='server_tool_use') {
-      if (block.name!=='web_search' || block.kind!=='search' || block.caller?.type!=='direct' || !identity(block.id) || calls.has(block.id) || !record(block.input)) return false;
+      const fetched=block.name==='web_fetch' && block.kind==='read_link';
+      if ((!fetched && (block.name!=='web_search' || block.kind!=='search')) || block.caller?.type!=='direct' || !identity(block.id) || calls.has(block.id) || !record(block.input)) return false;
       const input=block.input;
+      if(fetched) {
+        if(input.action!=='read_link' || typeof input.url!=='string') return false;
+        calls.set(block.id,block); continue;
+      }
       if (input.action==='search') {
         if (!Array.isArray(input.queries) || input.queries.some(x=>typeof x!=='string')) return false;
       } else if (input.action==='open_page') { if (typeof input.url!=='string') return false; }
@@ -23,9 +28,16 @@ export function normalizedSearchHistory(content) {
       else return false;
       calls.set(block.id,block);
     } else if (block?.type==='web_search_tool_result') {
-      if (block.kind!=='search' || !calls.has(block.tool_use_id) || results.has(block.tool_use_id) || !Array.isArray(block.content) || block.content.some(x=>!record(x) || !['web_search_result','web_search_tool_result_error'].includes(x.type))) return false;
+      if (block.kind!=='search' || calls.get(block.tool_use_id)?.name!=='web_search' || results.has(block.tool_use_id) || !Array.isArray(block.content) || block.content.some(x=>!record(x) || !['web_search_result','web_search_tool_result_error'].includes(x.type))) return false;
       results.add(block.tool_use_id);
-    } else if (['tool_use','tool_result','web_fetch_tool_result'].includes(block?.type)) return false;
+    } else if (block?.type==='web_fetch_tool_result') {
+      const page=block.content;
+      if(block.kind!=='read_link' || calls.get(block.tool_use_id)?.name!=='web_fetch' || results.has(block.tool_use_id) || !record(page)) return false;
+      if(page.type==='web_fetch_result') {
+        if(typeof page.url!=='string' || !record(page.content) || page.content.type!=='document' || page.content.source?.type!=='text' || page.content.source.media_type!=='text/plain' || typeof page.content.source.data!=='string' || page.content.source.data.length>32*1024 || !(page.content.title===null || typeof page.content.title==='string') || page.published_at!==null) return false;
+      } else if(page.type!=='web_fetch_tool_result_error' || !['url_not_accessible','url_not_allowed','unavailable'].includes(page.error_code)) return false;
+      results.add(block.tool_use_id);
+    } else if (['tool_use','tool_result'].includes(block?.type)) return false;
   }
   return calls.size===results.size;
 }
