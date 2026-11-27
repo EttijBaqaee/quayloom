@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { runtimeBasePath } from './runtimePaths.js'
 import type { TtsVoice } from './api/speech.js'
 import { DEEPSEEK_REASONING_EFFORTS, LEGACY_REASONING_EFFORTS, REASONING_EFFORTS, type ReasoningEffort } from './api/types.js'
 import { normalizeLocation, type UserLocation } from './location.js'
@@ -70,7 +71,7 @@ export const getSupportedReasoningEfforts = (declared?: readonly unknown[], prot
 
 const reasoningPreferenceKey = (scope: ReasoningEffortScope | null): string | null =>
   scope?.principalId && scope.providerId && scope.modelId
-    ? `quayloom:reasoning-effort:${JSON.stringify([__BASE_PATH__, scope.principalId, scope.providerId, scope.modelId])}`
+    ? `quayloom:reasoning-effort:${JSON.stringify([runtimeBasePath(), scope.principalId, scope.providerId, scope.modelId])}`
     : null
 
 export const getReasoningEffortPreference = (scope: ReasoningEffortScope | null, declared?: readonly unknown[], protocol: ReasoningEffortProtocol = 'openai'): ReasoningEffortPreference => {
@@ -152,7 +153,7 @@ export const useSettings = create<Settings>(() => ({
 }))
 
 export function bindPersonalSettings(principalId: string) {
-  locationKey = principalId === 'admin' ? KEYS.location : `quayloom:${__BASE_PATH__}:location:${principalId}`
+  locationKey = principalId === 'admin' ? KEYS.location : `quayloom:${runtimeBasePath()}:location:${principalId}`
   useSettings.setState({ location: initialLocation(locationKey), reasoningEffortPreferences: {} })
 }
 export function clearPersonalSettings() { locationKey = null; useSettings.setState({ location: null, reasoningEffortPreferences: {} }) }

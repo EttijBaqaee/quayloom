@@ -16,6 +16,14 @@ KaTeX's JavaScript/software is MIT, but the bundled font metadata specifies **SI
 
 New product branding uses an original geometric harbor/dialogue symbol; no DeepSeek whale graphic is included. Quayloom is independent and does not claim affiliation with DeepSeek or DSH, or trademark authorization. Naming is not a claim of trademark clearance or exclusive rights.
 
+## Client-side document parsers and PDF resources
+
+Document extraction uses PDF.js (`pdfjs-dist` 5.4.624, Apache-2.0), `saxes` 6.0.0 (ISC) and its `xmlchars` 2.2.0 dependency (MIT); ZIP decompression also uses the already inventoried `fflate` 0.8.3 (MIT). These parsers run client-side. Their original licenses, package metadata and relevant source copyright headers are preserved in the [third-party inventory](LICENSES/THIRD-PARTY.md). Extracted text is untrusted user-provided content, not proof of the original document's authenticity.
+
+PDF.js software copyright headers retain `Copyright 2024 Mozilla Foundation`. Its copied CMap data and standard fonts have separate licenses: [Adobe CMap terms](LICENSES/third-party/pdfjs-dist@5.4.624/original/cmaps/LICENSE), [PDFium/Foxit BSD terms](LICENSES/third-party/pdfjs-dist@5.4.624/original/standard_fonts/LICENSE_FOXIT), and [Liberation SIL OFL 1.1 terms](LICENSES/third-party/pdfjs-dist@5.4.624/original/standard_fonts/LICENSE_LIBERATION). The Liberation notice retains Google/Red Hat copyrights and Reserved Font Names Arimo, Tinos, Cousine and Liberation. Complete resource directories, including these notices, are copied alongside the browser resources under `static/pdfjs/cmaps/` and `static/pdfjs/standard_fonts/`. Do not relicense those resources as Apache-2.0 or AGPL.
+
+The installed saxes 6.0.0 package omits its standalone LICENSE and AUTHORS. Their unmodified originals are therefore preserved from its exact upstream v6.0.0 tag: [LICENSE](LICENSES/third-party/saxes@6.0.0/original/upstream-v6.0.0/LICENSE) and [AUTHORS](LICENSES/third-party/saxes@6.0.0/original/upstream-v6.0.0/AUTHORS), with provenance and hashes in the inventory. The complete upstream license includes inherited sax ISC and historical MIT notices; retaining that historical notice does not assert that the no-longer-used historical code is bundled.
+
 ## Conceptual references
 
 DSH was inspected for the conceptual provider → endpoint/authentication → model/capability configuration pattern. This application is independent and does not load DSH credentials, account tokens, profiles or plugins. It implements a narrower protocol set than DSH.
@@ -38,6 +46,6 @@ The Android 0.2.0 and mobile chat redesign uses DeepSeek's [official download pa
 
 ## Corresponding Source
 
-Release operators must provide the Corresponding Source for the version conveyed or offered for remote interaction as required by the AGPL. Quayloom's release mechanism provides a source ZIP through the web interface and `GET /api/source.zip` under the configured base path; Docker and APK distributions also include the matching source archive. A public GitHub repository is not required for this mechanism.
+Release operators must provide the Corresponding Source for the version conveyed or offered for remote interaction as required by the AGPL. The frontend navigation links to the public project repository at https://github.com/EttijBaqaee/quayloom; that repository link is not itself a claim that its current branch matches a particular deployed build. The version-matched source ZIP remains available through `GET /api/source.zip` under the configured base path; Docker and APK distributions also include the matching source archive. Release operators must preserve this source delivery mechanism and verify the archive against the version actually conveyed or running.
 
 The source must include the material needed to modify, build, install and run the covered work, with applicable license notices and installation instructions. Production credentials, user data and private signing keys must not be published; Android source can be built and signed using the recipient's own key. Release operators must check that these source delivery paths are available and match the actual distributed/running version before release. This notice does not assert that any particular deployment or device test has already completed.

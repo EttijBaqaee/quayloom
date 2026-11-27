@@ -1,4 +1,5 @@
 import { appPath } from './paths.js'
+import { runtimeApiOrigin, runtimeBasePath } from './runtimePaths.js'
 import { create } from 'zustand'
 import { bindHistoryPrincipal } from './identity.js'
 import { bindPersonalSettings, clearPersonalSettings } from './settings.js'
@@ -6,7 +7,7 @@ import type { ReasoningEffort } from './api/types.js'
 export type Principal = { id: string; role: 'admin' | 'user'; name: string; expiresAt: number | null }
 
 export type Capabilities = { thinking: boolean; search: boolean; files: boolean; vision: boolean; speech: boolean }
-export type StudioModel = { id: string; name: string; capabilities: Capabilities; maxOutputTokens: number; contextWindowTokens?: number | null; openaiProtocol?: 'chat-completions' | 'responses'; searchAdapter?: 'openai-web-search' | 'anthropic-web-search'; reasoningEfforts?: ReasoningEffort[]; reasoningEffort?: ReasoningEffort }
+export type StudioModel = { id: string; name: string; capabilities: Capabilities; maxOutputTokens: number; contextWindowTokens?: number | null; openaiProtocol?: 'chat-completions' | 'responses'; searchAdapter?: 'openai-web-search' | 'anthropic-web-search' | 'server-tool-search'; reasoningEfforts?: ReasoningEffort[]; reasoningEffort?: ReasoningEffort }
 export type Quota = { dailyRequestLimit: number | null; dailyTokenLimit: number | null; totalTokenLimit: number | null; concurrencyLimit: number }
 export const defaultQuota = (): Quota => ({ dailyRequestLimit: null, dailyTokenLimit: null, totalTokenLimit: null, concurrencyLimit: 4 })
 export type Provider = { quota: Quota; id: string; name: string; type: 'openai' | 'anthropic' | 'deepseek'; baseUrl: string; enabled: boolean; allowPrivateNetwork: boolean; models: StudioModel[]; hasApiKey: boolean }
@@ -30,7 +31,7 @@ export const useStudio = create<{
 
 let catalogSequence = 0
 let defaultSelection: ModelSelection | null = null
-const recentSelectionKey = (id: string) => `quayloom:${__BASE_PATH__}:model-selection:${id}`
+const recentSelectionKey = (id: string) => `quayloom:${runtimeBasePath()}:model-selection:${id}`
 export const recentModelSelection = (): ModelSelection | null => {
   const id = useStudio.getState().principal?.id
   if (!id) { return null }
@@ -58,7 +59,7 @@ export async function studioApi<T>(path: string, init: RequestInit = {}): Promis
   const principal = useStudio.getState().principal
   if (principal && path !== '/auth/session' && path !== '/auth/login') {headers.set('x-studio-principal', principal.id)}
   if (init.body && !(init.body instanceof FormData)) {headers.set('Content-Type', 'application/json')}
-  const response = await fetch(`${__API_ORIGIN__}${path}`, { ...init, headers, credentials: 'same-origin', cache: 'no-store' })
+  const response = await fetch(`${runtimeApiOrigin()}${path}`, { ...init, headers, credentials: 'same-origin', cache: 'no-store' })
   if (response.status === 401) {sessionExpired()}
   const body = await response.json().catch(() => null)
   if (!response.ok) {throw new StudioError(body?.error?.message || `请求失败（${response.status}）`, response.status)}
@@ -122,10 +123,10 @@ export function supportedCapabilities(provider: Pick<Provider, 'type'>, model: S
   return {
     thinking: model.capabilities.thinking,
     search: model.capabilities.search && (provider.type === 'deepseek' ||
-      provider.type === 'openai' && model.openaiProtocol === 'responses' && model.searchAdapter === 'openai-web-search' ||
+      provider.type === 'openai' && (model.searchAdapter === 'server-tool-search' || model.openaiProtocol === 'responses' && model.searchAdapter === 'openai-web-search') ||
       provider.type === 'anthropic' && model.searchAdapter === 'anthropic-web-search'),
     speech: provider.type === 'deepseek' && model.capabilities.speech,
-    files: provider.type !== 'openai' && model.capabilities.files,
+    files: model.capabilities.files,
     vision: model.capabilities.vision,
   }
 }

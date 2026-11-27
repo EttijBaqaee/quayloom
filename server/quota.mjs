@@ -53,7 +53,11 @@ export function createQuotaLedger(db, { timeZone = 'Asia/Shanghai' } = {}) {
       const day = date()
       // Conservative local allowance, not a claim about the vendor tokenizer or invoice.
       const inputBytes = Buffer.byteLength(JSON.stringify({ system: body.system || '', messages: body.messages || [], tools: body.tools || [] }), 'utf8')
-      const reserved = feature ? 0 : inputBytes + (body.messages?.length || 0) * 32 + model.maxOutputTokens
+      // Adapters cap the dispatched output to min(requested, configured). Reserve
+      // that same bound; absent/invalid limits must never weaken the model cap.
+      const outputTokens = Number.isSafeInteger(body.max_tokens) && body.max_tokens > 0
+        ? Math.min(body.max_tokens, model.maxOutputTokens) : model.maxOutputTokens
+      const reserved = feature ? 0 : inputBytes + (body.messages?.length || 0) * 32 + outputTokens
       db.exec('BEGIN IMMEDIATE')
       try {
         check(provider.id, provider.quota, reserved, 'provider', 'Provider')

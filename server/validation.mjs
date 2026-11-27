@@ -26,12 +26,13 @@ export function validateProvider(input, id, validateBaseUrl) {
     const cap = item.capabilities || {}
     const caps = Object.fromEntries(['thinking', 'search', 'files', 'vision', 'speech'].map(k => [k, cap[k] === true]))
     if (input.type !== 'deepseek' && caps.speech) fail(400, 'Native speech is only implemented for DeepSeek protocol')
-    if (item.searchAdapter !== undefined && !['openai-web-search', 'anthropic-web-search'].includes(item.searchAdapter)) fail(400, 'Invalid searchAdapter')
+    if (item.searchAdapter !== undefined && !['openai-web-search', 'anthropic-web-search', 'server-tool-search'].includes(item.searchAdapter)) fail(400, 'Invalid searchAdapter')
     // An adapter declaration can be retained while search is switched off, but
     // it must always match the provider and the explicitly selected protocol.
     if (item.searchAdapter !== undefined && !searchAdapterFor(config, { ...item, capabilities: { search: true } })) fail(400, 'searchAdapter is incompatible with provider type or OpenAI protocol')
     if (caps.search && input.type !== 'deepseek' && !searchAdapterFor(config, { ...item, capabilities: caps })) fail(400, 'OpenAI/Anthropic native search requires an explicit compatible searchAdapter')
-    if (input.type === 'openai' && caps.files) fail(400, 'OpenAI-compatible models support image vision, not native files')
+    // OpenAI files means owner-bound client-extracted text, resolved by app/chat
+    // before adapter validation and quota reservation. Native file proxying is unchanged.
     const maxOutputTokens = item.maxOutputTokens ?? 4096
     if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 256 || maxOutputTokens > 200000) fail(400, 'maxOutputTokens must be an integer between 256 and 200000')
     const contextWindowTokens = item.contextWindowTokens ?? null

@@ -61,6 +61,5 @@ export function UpdatePanel() {
     <dl className="studio-update-versions"><div><dt>{t('当前版本')}</dt><dd>{result?.currentVersion || '—'}</dd></div><div><dt>{t('最新稳定版')}</dt><dd>{available ? result.latestVersion : '—'}</dd></div></dl>
     <p className={available && result.updateAvailable ? 'studio-update-available' : 'studio-muted'} role="status" aria-live="polite">{checking ? t('正在检查版本更新…') : available ? (result.updateAvailable ? t('发现新版本 {version}', { version: result.latestVersion ?? '' }) : t('当前已是最新稳定版')) : t('暂时无法检查更新，请稍后重试。')}</p>
     {releaseUrl && <a className="studio-update-link" href={releaseUrl} target="_blank" rel="noopener noreferrer">{t('打开 GitHub 发布页')} ↗</a>}
-    <small className="studio-muted">{t('仅查询 GitHub 公开版本信息，不发送业务数据，也不会自动升级。')}{' '}{t('成功结果缓存 15 分钟，失败结果缓存 60 秒。')}</small>
   </section>
 }

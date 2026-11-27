@@ -1,8 +1,8 @@
 {
   "project": "quayloom",
-  "version": "0.3.4",
-  "scope": "Installed closure of package.json dependencies, including transitive required dependencies, available optional dependencies and available peers. Includes declared type packages and conservative peer extras; not a claim every component is emitted into the browser bundle. Development-only roots are not traversed.",
-  "lockfileSHA256": "57a31cfdb03fc50ba2141d15380bb6c692703af845bef1ea5357ce928062f33f",
+  "version": "0.3.11",
+  "scope": "Retained 218-component installed production dependency inventory, including transitive required dependencies, available optional dependencies, available peers and declared type packages, plus verified browser document-parser additions pdfjs-dist 5.4.624, saxes 6.0.0 and xmlchars 2.2.0. All 221 listed versions match the current lockfile. Not a claim every component is emitted into the browser bundle; the new parser addition does not re-audit every optional Node-only branch, and optional PDF.js Node canvas packages are not used/copied by this browser build. Development-only roots are not traversed.",
+  "lockfileSHA256": "7dd4baf5b05fb62b33ebfb735da19ad173482a75b94f22a62bda4412ed7e426a",
   "uninstalledOptionalPeers": [
     {
       "name": "immer",
@@ -10,6 +10,83 @@
     }
   ],
   "components": [
+    {
+      "name": "pdfjs-dist",
+      "version": "5.4.624",
+      "license": "Apache-2.0",
+      "direct": true,
+      "metadata": "third-party/pdfjs-dist@5.4.624/metadata.json",
+      "licenseFiles": [
+        {
+          "source": "LICENSE",
+          "file": "third-party/pdfjs-dist@5.4.624/original/LICENSE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+        },
+        {
+          "source": "cmaps/LICENSE",
+          "file": "third-party/pdfjs-dist@5.4.624/original/cmaps/LICENSE",
+          "sha256": "aa92ab5a472974865a96fd4a4e9c13bb41bf6fe1b309cb6b8da48bc9e19839a2"
+        },
+        {
+          "source": "standard_fonts/LICENSE_FOXIT",
+          "file": "third-party/pdfjs-dist@5.4.624/original/standard_fonts/LICENSE_FOXIT",
+          "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
+        },
+        {
+          "source": "standard_fonts/LICENSE_LIBERATION",
+          "file": "third-party/pdfjs-dist@5.4.624/original/standard_fonts/LICENSE_LIBERATION",
+          "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b"
+        }
+      ],
+      "copyrightHeaders": {
+        "file": "third-party/pdfjs-dist@5.4.624/COPYRIGHT-HEADERS.txt",
+        "sha256": "8c31f841988171e7dcd8363860363e7313a4ee2ea92b4aef922bc0a60afe1004"
+      },
+      "fallback": "Apache-2.0 applies to PDF.js software. Copied cmaps/LICENSE retains Adobe BSD-3-Clause terms; standard_fonts/LICENSE_FOXIT retains PDFium BSD-3-Clause terms; standard_fonts/LICENSE_LIBERATION retains OFL-1.1 with Google/Red Hat copyrights and Reserved Font Names. The entire cmaps and standard_fonts directories, including these license files, are copied to static/pdfjs/. These resource licenses are not replaced by the software license or AGPL."
+    },
+    {
+      "name": "saxes",
+      "version": "6.0.0",
+      "license": "ISC",
+      "direct": true,
+      "metadata": "third-party/saxes@6.0.0/metadata.json",
+      "licenseFiles": [
+        {
+          "source": "README.md",
+          "file": "third-party/saxes@6.0.0/original/README.md",
+          "sha256": "ade6061f7c778cdd868d9b0f711530e4c1ec1f33767222ce33bb05e295bf6f0c"
+        },
+        {
+          "source": "https://raw.githubusercontent.com/lddubeau/saxes/v6.0.0/LICENSE",
+          "file": "third-party/saxes@6.0.0/original/upstream-v6.0.0/LICENSE",
+          "sha256": "0fac2374380621b22e6b50451057721a9c52935b02d16d106a9f04897f061d0e"
+        },
+        {
+          "source": "https://raw.githubusercontent.com/lddubeau/saxes/v6.0.0/AUTHORS",
+          "file": "third-party/saxes@6.0.0/original/upstream-v6.0.0/AUTHORS",
+          "sha256": "4e9bfee1d0ed0a8bdacbdc1acf0a999b17054aa7bfc52eff00e869472be2a5cc"
+        }
+      ],
+      "fallback": "The installed 6.0.0 npm package omits LICENSE and AUTHORS; its original package.json declares ISC and README documents the sax 1.2.4 fork. Complete LICENSE and AUTHORS are preserved from the exact upstream v6.0.0 tag, verified against Git tree 211fa0ebec9b628affc09219199639887174bfc3 (LICENSE blob 187f3ba399862022f4e670b2a3a1dbc6d7e6a800; AUTHORS blob 991f71c5d138712b77ca99aad9f99fb0ed157e2c). The unmodified LICENSE retains inherited sax ISC and historical MIT notices; historical code is not asserted to be bundled."
+    },
+    {
+      "name": "xmlchars",
+      "version": "2.2.0",
+      "license": "MIT",
+      "direct": false,
+      "metadata": "third-party/xmlchars@2.2.0/metadata.json",
+      "licenseFiles": [
+        {
+          "source": "LICENSE",
+          "file": "third-party/xmlchars@2.2.0/original/LICENSE",
+          "sha256": "45d196313c2647d313cc65ca9b093d2d6974b64d35ee7346f2c60c9d518dff2c"
+        }
+      ],
+      "copyrightHeaders": {
+        "file": "third-party/xmlchars@2.2.0/COPYRIGHT-HEADERS.txt",
+        "sha256": "38451f7e97e4ab10c66a9f285edeae01bef6144ceb26385ee9baa7f59c99864b"
+      }
+    },
     {
       "name": "@antfu/install-pkg",
       "version": "1.1.0",

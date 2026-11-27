@@ -1,4 +1,4 @@
-# Quayloom · 0.3.10
+# Quayloom · 0.3.11
 
 [![简体中文](https://img.shields.io/badge/简体中文-Readme-lightgrey)](README.md) [![English](https://img.shields.io/badge/English-Current-blue)](README.en.md) ![License](https://img.shields.io/badge/license-AGPL--3.0--only-green) ![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)
 
@@ -21,6 +21,10 @@ Quayloom is a self-hosted, multi-provider AI chat workspace built on the officia
 - **Project terms:** [License and credits](#license-and-credits) · [Privacy](#privacy) · [Disclaimer](#disclaimer)
 
 ## What's new
+
+Version **0.3.11** uses the runtime `BASE_PATH` for Web subpath deployments; the container defaults to `/quayloom` when the variable is unset or empty, and a different path can be set in Compose without rebuilding. Source links now open GitHub while matching source archives, the download API and licenses remain available. Independent Search/Fetch settings keep credentials encrypted on the server; GPT/Grok can use ordinary function tools backed by the selected search service, while native search remains an explicit adapter choice. Output reservations use the smaller request/model limit and tool rounds share the output budget. Native Grok search accepts empty reasoning items with no actual reasoning content while retaining other response checks. Update-panel copy is shorter. Administrators can enable browser-local text extraction for OpenAI-compatible document attachments, covering text/code, CSV/JSON, DOCX/PPTX/XLSX and text-bearing PDFs while preserving image/native file routes. Android remains **0.2.2**. GHCR `latest` stays on **0.3.10** and is not a rolling alias for this release; use **0.3.11** explicitly.
+
+For native OpenAI Responses search only, set `allow_web_fetch: false` on the `web_search` tool request to omit Quayloom's companion `web_fetch`. Omitting the flag keeps the combined search/fetch behavior. Only validated completion-event usage can settle actual token usage or authorize another tool round; the shared output cap is unchanged.
 
 Version **0.3.10** persists each conversation's exact provider and model, including explicit unsent choices, without silently replacing unavailable models. Administrator task details use compact cards with expandable complete IDs and cache usage. Responses search accepts API-backed sources internally while displaying only genuine URL citations; upstream `web_search` availability errors remain visible without automatic retries or model fallback. Android **0.2.2** removes the app's screenshot/recording restriction, improves system back handling and keyboard-first navigation, and synchronizes system-area backgrounds with the page theme while preserving encrypted remembered login and upgrade identity.
 
@@ -50,7 +54,7 @@ Access codes currently allow **text and reasoning only**, not search, file or vo
 
 ### Prebuilt GHCR image
 
-Image: `ghcr.io/ettijbaqaee/quayloom:0.3.10`; rolling tag: `latest`; platform: `linux/amd64`.
+Pinned image: `ghcr.io/ettijbaqaee/quayloom:0.3.11`; platform: `linux/amd64`. `latest` remains on the older **0.3.10** image, not a rolling alias for 0.3.11.
 
 This is the complete composition, identical to [compose.ghcr.yaml](compose.ghcr.yaml). Import it into 1Panel or use the repository file:
 
@@ -58,7 +62,7 @@ This is the complete composition, identical to [compose.ghcr.yaml](compose.ghcr.
 name: quayloom
 services:
   quayloom:
-    image: ghcr.io/ettijbaqaee/quayloom:0.3.10
+    image: ghcr.io/ettijbaqaee/quayloom:0.3.11
     pull_policy: always
     init: true
     restart: unless-stopped
@@ -101,7 +105,7 @@ docker compose -f compose.ghcr.yaml logs quayloom
 
 Proxy the public site to `127.0.0.1:9810`; the binding is intentionally loopback-only. The image has a built-in health check. Read the first administrator password from the log. For local-only HTTP evaluation, use `PUBLIC_ORIGIN=http://127.0.0.1:9810` and `COOKIE_SECURE=false`. If you override `PORT`, also change your reverse-proxy upstream. Before upgrades, back up the data and master key, update the pinned image tag, pull and recreate; never delete the data volume to upgrade.
 
-The image is built for the **root path**. Subpath deployments must rebuild from source with matching build and runtime base paths; changing only `BASE_PATH` cannot rewrite the bundled frontend.
+Images that support a runtime base path read `BASE_PATH` from the composition. Configure the reverse proxy as described below.
 
 ### Docker Compose (build from source)
 
@@ -141,7 +145,7 @@ Persistent data lives in a Docker volume. **Do not run `docker compose down -v` 
 
 ### Subpaths and offline images
 
-For deployment at `/Quayloom`, set `BASE_PATH=/Quayloom` in `.env`. The supplied composition passes it to both the `APP_BASE_PATH` build argument and the `BASE_PATH` runtime variable. `PUBLIC_ORIGIN` remains an origin such as `https://chat.example.com`, without a path. Rebuild the frontend after changing its base path.
+For deployment at `/Quayloom`, set `BASE_PATH=/Quayloom` in `.env`. The supplied composition passes it to the container and defaults to `/quayloom` when unset or empty. `PUBLIC_ORIGIN` remains an origin such as `https://chat.example.com`, without a path. Keep the full request path in the reverse proxy. Recreate the container after changing the path; no image rebuild is needed.
 
 If you have an offline image, import it using `docker load -i <image.tar.gz>`, set the composition's `image` to the actual imported tag and remove `build`. The source repository does not contain large image archives; prebuilt images are distributed through GHCR.
 
@@ -177,13 +181,19 @@ The public tree excludes internal tests, verification scripts, screenshots and a
 
 | Protocol | Supported scope |
 | --- | --- |
-| OpenAI compatible | Explicit per-model Chat Completions or Responses; text, reasoning and declared image support. Native `web_search` requires Responses and an explicitly configured adapter. |
+| OpenAI compatible | Explicit per-model Chat Completions or Responses; text, reasoning and declared image support. Native `web_search` requires Responses and an explicit adapter; Chat Completions / Responses can also use independently configured search function tools. |
 | Anthropic | Messages, declared vision/files and thinking; an explicit `web_search_20250305` adapter is available. DeepSeek-only extensions are filtered. |
 | DeepSeek extensions | Corresponding official endpoint and extension protocol; search and voice still depend on upstream support. |
 
-For native search, select the matching search adapter and capability, then enable search in administrator chat. Newly discovered models do not enable it automatically. Search actions, sources and citations reflect upstream data; Quayloom does not run arbitrary tools or fetch web pages itself. Search may incur separate provider charges beyond local chat-token quotas.
+Configure Search and Fetch backends independently in administration. Credentials are encrypted on the server and never returned to the browser. Ordinary search function tools call the selected search service and return genuine sources to GPT/Grok without requiring native search support from the chat relay. Native search still requires an explicit compatible adapter. Enable search in administrator chat; discovery does not enable it automatically. Fetch reads permitted public pages without scripts, redirects or arbitrary tool execution. Retrieval may be billed separately from chat-token quotas. Failures do not silently switch backends, protocols or models.
 
 Administrator OpenAI-compatible image input supports PNG, JPEG, GIF and WebP, up to 3 MiB per image and 256 images / 128 MiB per identity. Images are stored in the server database and transformed to the selected protocol before sending. Reasoning effort follows the model's declared supported values; a provider default is available.
+
+**OpenAI documents:** enable **Documents (extract text)** for the model in administration. A disposable browser worker extracts UTF-8 text/code/Markdown, CSV/JSON, DOCX/PPTX/XLSX and text-bearing PDFs. PDF CMaps/fonts are bundled same-origin assets; there is no OCR, CDN or external conversion service. The server stores extracted text and metadata scoped to the identity/provider, then expands references into ordinary user text **before context validation and token reservation**. Limits: 10 MiB original, 200000 characters / 1 MiB extracted text, 200 PDF pages, 100000 text items across the entire PDF and a 15-second extraction deadline; exceeding a limit is rejected, not silently truncated. Scanned/encrypted PDFs and PDFs with JavaScript actions, legacy DOC/PPT/XLS, macros and embedded objects are unsupported. Binary control characters in text are rejected; spreadsheets use cached values without executing formulas.
+
+Office files have additional resource limits: at most 2000 ZIP entries, 4 MiB expanded per entry, 20 MiB expanded in total and a 100:1 compression ratio; ZIP64, split archives, encryption and other unsupported structures are rejected. PPTX is limited to 200 slides; XLSX to 200 worksheets, with 100000 rows and 100000 cells per worksheet. An original smaller than 10 MiB is not guaranteed to parse. The 15-second worker deadline is **not a browser heap-memory cap**. Limits on accumulated extracted text do not bound the PDF parser's internal decompression, font or cross-reference peak memory; complex PDFs can still consume substantial memory. See the [detailed resource and recovery limits, Chinese](docs/DEPLOYMENT.md#文档附件资源与恢复边界).
+
+Storage is limited to 256 documents / 64 MiB per identity. Each request can expand at most 100 document references and 2 MiB including wrapper text, subject to model context limits. Stored text is included in database backups; original files remain browser-local. Android 0.2.2 still does not offer local file picking, and access codes remain text/reasoning-only.
 
 No model-name guessing, protocol fallback or automatic resend is used after failure. Capability switches do not add features to the upstream service. Provider-specific file IDs and signed contexts are not forwarded to another provider. Gemini, AWS/Vertex and DSH OAuth/device login are not integrated, and DSH credentials are not read.
 
@@ -198,7 +208,7 @@ Conversations and jobs are persisted on the server and isolated by administrator
 - A server restart marks incomplete jobs interrupted and retains partial output. It does **not** automatically resend possibly billable requests.
 - Concurrent edits use revision checks; conflicting writes are rejected instead of silently overwriting another tab.
 - Quotas reserve usage before sending and settle against complete reported usage. Failed or interrupted upstream requests without reliable usage conservatively consume the reservation. Daily quotas use `Asia/Shanghai` by default.
-- File and voice requests count toward requests and concurrency, not chat tokens. Local quotas are not a currency budget or provider balance; configure spending limits with the provider too.
+- Standalone native file-upload and voice requests count toward requests and concurrency, not chat tokens. Extracted document text sent as chat input counts toward token quotas normally. Local quotas are not a currency budget or provider balance; configure spending limits with the provider too.
 
 ## Statistics
 
@@ -216,7 +226,7 @@ SQLite uses a single-process exclusive lock. **Never run multiple replicas again
 
 Before upgrading, stop the instance and back up the complete data directory, administrator password file and deployment configuration. Keep the database and its encryption master key together. If `STUDIO_MASTER_KEY` is used, separately preserve exactly the same 32-byte Base64 key. Lost or mismatched keys prevent credential recovery.
 
-History ZIP exports contain conversations and available images, not API keys, settings or original non-image attachments. Import replaces the current identity's history, not another identity's. Manual history snapshots do not replace a complete database backup.
+History ZIP exports contain conversations and available images, not API keys, settings, original non-image attachments or server-stored extracted document text; non-image attachments retain metadata only. After importing into another instance or losing the document table, the ZIP alone cannot restore document content: retain originals for re-upload, or restore a complete database backup with the original identity/provider configuration. Import replaces the current identity's history, not another identity's. Manual history snapshots do not replace a complete database backup.
 
 To reset an administrator password, stop the server, set `RESET_ADMIN_PASSWORD`, run `pnpm reset-password`, clear that variable and update the existing password file/configuration before restarting. Resetting revokes logins but is not a substitute for stopping background jobs.
 
@@ -254,7 +264,7 @@ Quayloom's original code is **GNU AGPL v3 only (`AGPL-3.0-only`)**; see [LICENSE
 
 The README organization references [Pictelier](https://github.com/EttijBaqaee/pictelier), while deployment instructions and feature descriptions here refer to Quayloom. Quayloom is independent and is not an official DeepSeek, DSH or Pictelier product.
 
-The application offers corresponding source through its Source link and `GET /api/source.zip` under the configured base path. Docker and APK distributions also include their matching source. The GitHub development tree may differ from an older image's bundled documentation; operators must provide the source matching the version they distribute or run. Do not publish production credentials, user data or private signing keys. Recipients may rebuild Android with their own signing key.
+The application links to the project on GitHub; matching source archives remain available through `GET /api/source.zip` under the configured base path. Docker and APK distributions also include their matching source. The GitHub development tree may differ from an older image's bundled documentation; operators must provide the source matching the version they distribute or run. Do not publish production credentials, user data or private signing keys. Recipients may rebuild Android with their own signing key.
 
 
 ## Privacy

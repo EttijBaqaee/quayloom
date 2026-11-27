@@ -119,6 +119,7 @@ const toBlocks = (fragments: Fragment[], messageId: string): ReplyBlock[] => {
             type: 'thinking',
             thinking: item.content,
             ...(item.opaque_reasoning ? { opaqueReasoning: item.opaque_reasoning } : {}),
+            ...(item.responses_context ? { responsesContext: item.responses_context } : {}),
             ...(item.elapsed_secs === null ? {} : { elapsedSeconds: item.elapsed_secs }),
           },
         ]
@@ -220,9 +221,13 @@ const replyStatus: Record<ChatMessage['status'], ReplyStatus> = {
 const toAssistant = (message: ChatMessage): AssistantMessage => {
   const id = String(message.id)
   let blocks = toBlocks(message.fragments, id)
+  const contexts = blocks.flatMap(block => block.type === 'thinking' && block.responsesContext ? [block.responsesContext] : [])
+  if (contexts.length > 1) { fail('backupIncomplete') }
   const opaque = blocks.flatMap(block => block.type === 'thinking' && block.opaqueReasoning ? [block.opaqueReasoning] : [])
-  const origin = opaque[0]
+  const origin = contexts[0] ?? opaque[0]
   if (origin && opaque.some(value => value.provider_id !== origin.provider_id || value.model_id !== origin.model_id)) {
+    // Never silently discard a new ordered context or change its provenance.
+    if (contexts.length) { fail('backupIncomplete') }
     blocks = blocks.map(block => block.type === 'thinking' ? { ...block, opaqueReasoning: undefined } : block)
   }
   const refused = message.status === 'CONTENT_FILTER'

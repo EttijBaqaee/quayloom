@@ -1,6 +1,7 @@
 // Native search is opt-in metadata, never inferred from a model name or discovery.
 export function searchAdapterFor(provider, model) {
   if (model?.capabilities?.search !== true) return undefined;
+  if (provider.type === 'openai' && model.searchAdapter === 'server-tool-search') return model.searchAdapter;
   if (provider.type === 'openai' && model.openaiProtocol === 'responses' && model.searchAdapter === 'openai-web-search') return model.searchAdapter;
   if (provider.type === 'anthropic' && model.searchAdapter === 'anthropic-web-search') return model.searchAdapter;
   return undefined;
@@ -89,24 +90,77 @@ export function responsesSearch(provider, enabled, bad) {
       if (value.queries !== undefined && (!Array.isArray(value.queries) || value.queries.some(x=>typeof x!=='string'))) bad('Invalid Responses search queries');
       const queries = value.queries?.length ? value.queries : (value.query !== undefined ? [value.query] : []);
       if (!queries.length) bad('Responses search action is missing queries');
+      if (queries.length===1 && value.query!==undefined && value.query!==queries[0]) bad('Responses search query aliases conflict');
       if (value.sources !== undefined && !Array.isArray(value.sources)) bad('Invalid Responses search sources');
-      const results=[], apiSources=[];
+      const results=[], apiSources=[], sources=[];
       for (const source of value.sources ?? []) {
         if (!record(source)) bad('Invalid Responses search source');
-        if (source.type==='url') results.push(projection.result(source));
-        else if (source.type==='api') {
+        if (source.type==='url') {
+          results.push(projection.result(source));
+          sources.push({type:'url',url:source.url,...Object.fromEntries(['title','snippet','page_age'].filter(key=>source[key]!=null).map(key=>[key,source[key]]))});
+        } else if (source.type==='api') {
           // Hosted search also returns named feeds (weather/finance/sports), not
           // URLs. Retain their bounded identity for completed-snapshot checks,
           // but never manufacture links or copy opaque provider fields to UI.
           if (!identity(source.name) || !source.name.trim() || /[\x00-\x1f\x7f]/.test(source.name)) bad('Invalid Responses API search source');
           apiSources.push(projection.text(source.name));
+          sources.push({type:'api',name:source.name});
         } else bad('Unsupported Responses search source');
       }
-      return {input:{action:'search',...(value.query !== undefined ? {query:projection.text(value.query)} : {}),queries:queries.map(x=>projection.text(x))},results,...(apiSources.length ? {apiSources} : {})};
+      // Internal comparison uses validated original values, not redacted display
+      // strings. Do not let redaction hide a conflict. Preserve actual final
+      // query spelling and source order in canonical/raw replay, never merge it.
+      const comparison={input:{action:'search',queries:[...queries],...(queries.length>1 && value.query!==undefined ? {query:value.query} : {})},...(value.sources!==undefined ? {sources} : {})};
+      return {input:{action:'search',...(value.query !== undefined ? {query:projection.text(value.query)} : {}),queries:queries.map(x=>projection.text(x))},results,...(apiSources.length ? {apiSources} : {}),comparison};
     }
-    if (value.type === 'open_page') return {input:{action:'open_page',url:projection.url(value.url)},results:[]};
-    if (value.type === 'find') return {input:{action:'find_in_page',url:projection.url(value.url),pattern:projection.text(value.pattern)},results:[]};
+    if (value.type === 'open_page') return {input:{action:'open_page',url:projection.url(value.url)},results:[],comparison:{input:{action:'open_page',url:value.url}}};
+    if (value.type === 'find') return {input:{action:'find_in_page',url:projection.url(value.url),pattern:projection.text(value.pattern)},results:[],comparison:{input:{action:'find_in_page',url:value.url,pattern:value.pattern}}};
     bad('Unsupported Responses web search action');
+  };
+  const compatibleAction = (previous, current) => {
+    if (previous===undefined || current===undefined) return previous===current;
+    const before=previous.comparison, after=current.comparison;
+    if (JSON.stringify(before.input)!==JSON.stringify(after.input)) return false;
+    // An omitted optional sources field is unknown, unlike an explicitly empty
+    // array. Final may supply it, but cannot remove, replace, reorder or extend
+    // any already declared sources. Same-source optional metadata may only fill
+    // previously unknown values; explicit empty strings remain known values.
+    if (before.sources===undefined) return true;
+    if (!after.sources || before.sources.length!==after.sources.length) return false;
+    return before.sources.every((source,n)=>{
+      const next=after.sources[n];
+      if (source.type!==next.type || (source.type==='api' ? source.name!==next.name : source.url!==next.url)) return false;
+      return source.type==='api' || ['title','snippet','page_age'].every(key=>!Object.hasOwn(source,key) || source[key]===next[key]);
+    });
+  };
+  // Classify only an already rejected pair of validated internal snapshots.
+  // This never participates in acceptance, and never copies upstream values.
+  const mismatchDiagnostic = (previous, current) => {
+    const sourceShape = value => value?.comparison?.input?.action !== 'search' ? 'unavailable' : value.comparison.sources === undefined ? 'absent' : value.comparison.sources.length ? 'nonempty' : 'empty';
+    let reason = 'comparison_other', previousSources = 'unavailable', currentSources = 'unavailable';
+    try {
+      previousSources = sourceShape(previous); currentSources = sourceShape(current);
+      if (previous === undefined || current === undefined) reason = 'action_presence';
+      else {
+        const before = previous.comparison, after = current.comparison;
+        if (before.input.action !== after.input.action) reason = 'action_type';
+        else if (JSON.stringify(before.input.queries) !== JSON.stringify(after.input.queries)) reason = 'query_list';
+        else if (before.input.query !== after.input.query) reason = 'independent_query';
+        else if (before.input.url !== after.input.url) reason = 'url';
+        else if (before.input.pattern !== after.input.pattern) reason = 'pattern';
+        else if (before.sources !== undefined && after.sources === undefined) reason = 'sources_presence';
+        else if (before.sources !== undefined && before.sources.length !== after.sources?.length) reason = 'sources_count';
+        else if (before.sources !== undefined) {
+          for (let n = 0; n < before.sources.length; n++) {
+            const source = before.sources[n], next = after.sources[n];
+            if (source.type !== next.type) { reason = 'source_type'; break; }
+            if (source.type === 'api' ? source.name !== next.name : source.url !== next.url) { reason = 'source_identity'; break; }
+            if (source.type !== 'api' && ['title', 'snippet', 'page_age'].some(key => Object.hasOwn(source, key) && source[key] !== next[key])) { reason = 'source_metadata'; break; }
+          }
+        }
+      }
+    } catch { reason = 'comparison_other'; previousSources = currentSources = 'unavailable'; }
+    return {schema:'responses-search-snapshot-v1',code:'completed_search_mismatch',reason,previousSources,currentSources};
   };
   const check = (item, outputIndex, final) => {
     if (!enabled) bad('Responses returned search without an enabled native search request');
@@ -119,8 +173,8 @@ export function responsesSearch(provider, enabled, bad) {
     if (final) {
       if (!['completed','failed'].includes(item.status)) bad('Responses search did not finish');
       if (!current && item.status!=='failed') bad('Responses search is missing its action');
-      const snapshot=JSON.stringify({status:item.status,action:current});
-      if (state.snapshot!==undefined && state.snapshot!==snapshot) bad('Responses completed search does not match streamed item');
+      const snapshot=JSON.stringify({status:item.status,comparison:current?.comparison});
+      if (state.snapshot!==undefined && !compatibleAction(state.action,current)) bad('Responses completed search does not match streamed item',mismatchDiagnostic(state.action,current));
       state.snapshot=snapshot; state.action=current;
     } else if (rank[item.status]===2) bad('Responses added search item must be in progress');
   };

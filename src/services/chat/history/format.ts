@@ -6,7 +6,7 @@
  * - 可空字段用 null 表示；可选字段允许缺省。
  */
 
-import type { OpaqueReasoning } from '../../api/types.js'
+import type { OpaqueReasoning, ResponsesContext } from '../../api/types.js'
 
 /** 2026-11-11T02:33:23.270Z */
 export type Iso8601Utc = string
@@ -79,6 +79,8 @@ export type ThinkFragment = {
   content: string
   /** Quayloom 内部扩展：不可见的 Responses 上下文。 */
   opaque_reasoning?: OpaqueReasoning
+  /** 有序 Responses 回传锚点；仅一份，不随每个密文块复制。 */
+  responses_context?: ResponsesContext
   /** 思考耗时（秒） */
   elapsed_secs: number | null
 }

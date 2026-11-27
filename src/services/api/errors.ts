@@ -69,15 +69,15 @@ const FILE_ERROR_PATTERNS: ReadonlyArray<readonly [FileErrorCode, RegExp]> = [
  * 其余错误（限流、余额、purpose 不合规等）不在这里处理，保持原有失败提示。
  */
 export const getFileErrorCode = (error: unknown): FileErrorCode | null => {
-  if (!(error instanceof ApiError) || error.status !== 400) {
-    return null
-  }
+  if (!(error instanceof ApiError)) { return null }
+  if ((error.status === 400 || error.status === 404) && /Local document missing: qldoc_[a-f0-9]{48}\b/.test(error.message)) { return 'fileDataMissing' }
+  if (error.status !== 400) { return null }
   return FILE_ERROR_PATTERNS.find(([, pattern]) => pattern.test(error.message))?.[0] ?? null
 }
 
 /** 从报错文案里取出服务端 file_id，用于只重置真正失效的附件 */
 export const extractFileIds = (message: string): string[] => [
-  ...new Set(message.match(/file-api-[\w-]+/g) ?? []),
+  ...new Set(message.match(/file-api-[\w-]+|qldoc_[a-f0-9]{48}\b/g) ?? []),
 ]
 
 /** 上传失败里能识别出具体原因的情况；其余统一按「上传失败」处理 */

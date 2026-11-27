@@ -1143,6 +1143,25 @@ const streamReply = async (sessionId: string, initial: AssistantMessage, request
     if (job) {await monitorServerJob(job, controller)}
   } catch (error) {
     if (!submitted) {
+      // A resolver failure happens before a job/paid call exists. Forget ONLY the
+      // named local document ID; the next explicit retry re-uploads its original.
+      // Do not auto-resubmit, clear unrelated native IDs, or reuse a completed task.
+      if (error instanceof StudioError && [400, 404].includes(error.status)) {
+        const missing = /Local document missing: (qldoc_[a-f0-9]{48})\b/.exec(error.message)?.[1]
+        if (missing) {
+          const reset = new Map<string, null>()
+          for (const message of getSession(sessionId)?.messages ?? []) {
+            if (message.role !== 'user') { continue }
+            for (const file of message.files) {
+              if (!file.isImage && file.serverId === missing && file.providerId === target?.provider.id) {
+                reset.set(file.id, null)
+                useUploads.setState(state => ({ tasks: Object.fromEntries(Object.entries(state.tasks).filter(([id]) => id !== file.id)) }))
+              }
+            }
+          }
+          saveServerIds(sessionId, reset)
+        }
+      }
       reply = settleReply(reply, controller.signal.aborted ? 'stopped' : 'error', Date.now(), controller.signal.aborted ? undefined : {
         kind: preparing ? 'upload' : error instanceof ApiError ? error.kind : 'network',
         message: error instanceof Error ? error.message : '提交任务失败；请刷新以确认服务端任务状态。',

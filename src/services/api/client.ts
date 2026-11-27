@@ -1,6 +1,8 @@
 import { translate, type TranslationMessage } from '../../i18n/index.js'
 import { selectedTarget, sessionExpired, useStudio } from '../studio.js'
 import { resizeUploadImage } from '../../utils/resizeUploadImage.js'
+import { extractDocument } from '../documentExtraction.js'
+import { runtimeApiOrigin } from '../runtimePaths.js'
 import { readMessageEvent } from './parseEvent.js'
 import { readServerSentEvents } from './sse.js'
 import type {
@@ -11,8 +13,8 @@ import type {
   MessageStreamEvent,
 } from './types.js'
 
-/** 构建期同源服务器 API 前缀；供应商地址与密钥由服务器管理。 */
-export const API_ORIGIN = __API_ORIGIN__
+/** 运行时同源服务器 API 前缀；供应商地址与密钥由服务器管理。 */
+export const API_ORIGIN = runtimeApiOrigin()
 /** Anthropic 兼容接口的前缀 */
 const ANTHROPIC_BASE_URL = `${API_ORIGIN}/anthropic/v1`
 /** 引用 Files API 上传的图片、调用 Anthropic 兼容 Files API 时必须携带 */
@@ -122,7 +124,20 @@ export const uploadFile = async (
   target = selectedTarget()
 ): Promise<FileObject> => {
   if (target?.provider.type === 'openai') {
-    if (purpose !== null || !target.model.capabilities.vision) {throw new ApiError('protocol', '所选模型不支持此附件类型。')}
+    if (purpose !== null) {
+      if (!target.model.capabilities.files) {throw new ApiError('protocol', '所选模型未启用文档提取文字。')}
+      const document = await extractDocument(file, signal).catch((error: unknown) => {
+        if (signal?.aborted) { throw error }
+        throw new ApiError('protocol', error instanceof Error ? error.message : '文档文字提取失败。', 400)
+      })
+      const response = await request(`${API_ORIGIN}/documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-studio-provider': target.provider.id, 'x-studio-model': target.model.id },
+        body: JSON.stringify(document), signal,
+      })
+      return (await response.json()) as FileObject
+    }
+    if (!target.model.capabilities.vision) {throw new ApiError('protocol', '所选模型不支持此附件类型。')}
     const body = await resizeUploadImage(file, signal)
     const response = await request(`${API_ORIGIN}/images`, {
       method: 'POST',
@@ -148,7 +163,7 @@ export const uploadFile = async (
 
 /** DELETE /anthropic/v1/files/{file_id} */
 export const deleteFile = async (apiKey: string, fileId: string): Promise<void> => {
-  const url = fileId.startsWith('qlimg_') ? `${API_ORIGIN}/images/${encodeURIComponent(fileId)}` : `${ANTHROPIC_BASE_URL}/files/${encodeURIComponent(fileId)}`
+  const url = fileId.startsWith('qldoc_') ? `${API_ORIGIN}/documents/${encodeURIComponent(fileId)}` : fileId.startsWith('qlimg_') ? `${API_ORIGIN}/images/${encodeURIComponent(fileId)}` : `${ANTHROPIC_BASE_URL}/files/${encodeURIComponent(fileId)}`
   await request(url, {
     method: 'DELETE',
     headers: anthropicHeaders(apiKey, true),

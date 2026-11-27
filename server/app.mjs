@@ -12,8 +12,10 @@ import { normalizeAccess, allowsModel } from './access.mjs'
 import { createServerChat } from './chat.mjs'
 import { createNotices } from './notices.mjs'
 import { createImages } from './images.mjs'
+import { createDocuments } from './documents.mjs'
 import { createUsageAnalytics } from './analytics.mjs'
 import { createUpdateChecker } from './updates.mjs'
+import { validateWebToolsConfig } from './web-tools.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const JSON_LIMIT = 4 * 1024 * 1024
@@ -35,9 +37,16 @@ const cleanMessage = (error, secret = '') => {
   if (secret) message = message.split(secret).join('[REDACTED]')
   return message.replace(/\b(Bearer\s+)[^\s"']+/gi, '$1[REDACTED]').slice(0, 2000)
 }
+export function injectRuntimeBasePath(body, basePath) {
+  const escaped = basePath.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
+  const meta = `<meta name="quayloom-base-path" content="${escaped}">`
+  const html = body.toString('utf8')
+  // Put trusted runtime configuration before any build-time template fallback.
+  return Buffer.from(/<head\b[^>]*>/i.test(html) ? html.replace(/<head\b[^>]*>/i, head => head + meta) : meta + html)
+}
 export function createApp(options = {}) {
   const basePath = options.basePath || ''
-  if (basePath && !/^\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(basePath)) throw new Error('Invalid BASE_PATH')
+  if (basePath && /^\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.exec(basePath)?.[0] !== basePath) throw new Error('Invalid BASE_PATH')
   const store = openStore(options.dataDir || path.join(ROOT, 'data'), options)
   const adapters = options.adapters || defaultAdapters
   const attempts = new Map(), controllers = new Set(), accessControllers = new Map()
@@ -50,7 +59,8 @@ export function createApp(options = {}) {
   }
   const ledger = createQuotaLedger(store.db, { timeZone: options.quotaTimeZone || 'Asia/Shanghai' })
   const images = createImages({ store })
-  const chat = createServerChat({ store, adapters, ledger, controllers, accessControllers, images })
+  const documents = createDocuments({ store })
+  const chat = createServerChat({ store, adapters, ledger, controllers, accessControllers, images, documents })
   const notices = createNotices({ store })
   const analytics = createUsageAnalytics({ db: store.db })
   const updates = createUpdateChecker(options.updateCheck)
@@ -180,6 +190,14 @@ export function createApp(options = {}) {
           return json(res, 200, { accessCode: code })
         }
         if (pathname === '/api/admin/usage' && req.method === 'GET') return json(res, 200, ledger.list(store.providers()))
+        if (pathname === '/api/admin/web-tools') {
+          if (req.method === 'GET') return json(res, 200, { config: store.webToolsConfig() })
+          if (req.method === 'PUT') {
+            const body = await authorizedJson(req, principal), input = body?.config
+            const config = validateWebToolsConfig(input, adapters.validateBaseUrl)
+            return json(res, 200, { config: store.saveWebToolsConfig(config, input) })
+          }
+        }
         if (pathname === '/api/admin/providers') {
           if (req.method === 'GET') return json(res, 200, { providers: store.providers(), presets: PRESETS, defaultModel: store.reconcileDefault() })
           if (req.method === 'POST') {
@@ -234,7 +252,8 @@ export function createApp(options = {}) {
             if (body.messages.some(message => !textOnly(message.content)) || body.system !== undefined && !textOnly(body.system) || body.tools?.length || body.tool_choice) fail(403, '使用码当前仅支持文本与推理聊天，不支持文件、语音或工具')
           }
           body = images.resolve(principal.id, provider, body)
-          adapters.validateChatRequest?.(provider, model, body)
+          body = documents.resolve(principal.id, provider, body)
+          adapters.validateChatRequest?.(provider, model, body, { webToolsConfig: store.webToolsConfig(true) })
           const reservation = ledger.reserve(provider, model, adapters.chatQuotaBody?.(provider, model, body) ?? body, { access: requestAccess })
           privateUpstream = Boolean(requestAccess)
           let usage, completed = false, usageDelta = false
@@ -243,7 +262,7 @@ export function createApp(options = {}) {
           const abort = () => controller.abort(); res.on('close', abort)
           const timer = setTimeout(abort, Math.max(1, Math.min(10 * 60000, requestAccess?.expiresAt ? requestAccess.expiresAt - Date.now() : Infinity)))
           try {
-            const iterator = adapters.streamChat(provider, model, body, { signal: controller.signal, responsesRound: createResponsesRoundQuota({ store, ledger, reservation, provider, model, access: requestAccess }) })
+            const iterator = adapters.streamChat(provider, model, body, { signal: controller.signal, webToolsConfig: store.webToolsConfig(true), responsesRound: createResponsesRoundQuota({ store, ledger, reservation, provider, model, access: requestAccess }) })
             // Validate upstream and capabilities before committing the SSE status.
             const first = await iterator.next()
             if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError')
@@ -264,6 +283,27 @@ export function createApp(options = {}) {
             ledger.settle(reservation, completed && usageDelta ? usage : undefined, completed ? 'completed' : 'interrupted')
           }
           return
+        }
+        if (pathname === '/api/documents' || pathname.startsWith('/api/documents/')) {
+          if (principal.role !== 'admin') fail(403, '使用码暂不支持文档上传')
+          const providerId = req.headers['x-studio-provider']
+          if (pathname === '/api/documents') {
+            if (req.method !== 'POST') fail(405, 'Method not allowed')
+            const provider = store.provider(providerId)
+            if (!provider?.enabled || provider.type !== 'openai') fail(400, 'Select an enabled OpenAI-compatible provider')
+            const model = provider.models.find(m => m.id === req.headers['x-studio-model'])
+            if (model?.capabilities.files !== true) fail(400, 'Select a configured extracted-text files model')
+            // 200k characters can expand sixfold under JSON escaping, plus bounded metadata.
+            const input = await authorizedJson(req, principal, 1300 * 1024)
+            const current = store.provider(provider.id)
+            if (!current?.enabled || current.type !== 'openai') fail(400, 'Select an enabled OpenAI-compatible provider')
+            return json(res, 201, documents.upload(principal.id, current, current.models.find(m => m.id === req.headers['x-studio-model']), input))
+          }
+          const id = pathname.slice('/api/documents/'.length)
+          // Existing owner-bound references remain removable after channel disable/deletion.
+          if (req.method === 'GET') return json(res, 200, documents.metadata(principal.id, providerId, id))
+          if (req.method === 'DELETE') { documents.delete(principal.id, providerId, id); return json(res, 200, { ok: true }) }
+          fail(405, 'Method not allowed')
         }
         if (pathname === '/api/images' || pathname.startsWith('/api/images/')) {
           if (principal.role !== 'admin') fail(403, '使用码暂不支持图片上传')
@@ -327,7 +367,8 @@ export function createApp(options = {}) {
       try {
         const info = await stat(target)
         if (!info.isFile()) fail(404, 'Not found')
-        const body = await readFile(target)
+        const bytes = await readFile(target)
+        const body = target === path.join(dist, 'index.html') ? injectRuntimeBasePath(bytes, basePath) : bytes
         res.writeHead(200, { 'Content-Type': MIME[path.extname(target)] || 'application/octet-stream', 'Cache-Control': target.endsWith('index.html') ? 'no-cache' : 'public,max-age=31536000,immutable', 'Content-Length': body.length })
         res.end(req.method === 'HEAD' ? undefined : body)
       } catch (error) { if (error.code === 'ENOENT') fail(404, 'Frontend not built. Run pnpm build first.'); throw error }
@@ -335,7 +376,7 @@ export function createApp(options = {}) {
       if (res.destroyed || error?.name === 'AbortError') { if (!res.destroyed) res.end(); return }
       const status = Number.isInteger(error.status || error.statusCode) && (error.status || error.statusCode) >= 400 && (error.status || error.statusCode) < 600 ? error.status || error.statusCode : 500
       const message = privateUpstream ? `该渠道暂时无法完成请求，请稍后重试或联系管理员（${status}）` : status === 500 ? 'Internal server error' : cleanMessage(error, secret)
-      if (res.headersSent) { res.end(`event: error\ndata: ${JSON.stringify({ error: { message } })}\n\n`) }
+      if (res.headersSent) { res.end(`event: error\ndata: ${JSON.stringify({ type: 'error', error: { message } })}\n\n`) }
       else json(res, status, { error: { message } })
     }
   })

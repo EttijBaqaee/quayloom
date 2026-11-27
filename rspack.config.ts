@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from '@rspack/cli'
@@ -85,9 +85,17 @@ export const createConfig = ({
       scriptLoading: 'defer',
       meta: { 'application-version': version },
     }),
-    new rspack.DefinePlugin({ __API_ORIGIN__: JSON.stringify(apiOrigin), __BASE_PATH__: JSON.stringify(basePath) }),
+    new rspack.DefinePlugin({
+      __API_ORIGIN__: JSON.stringify(apiOrigin), __BASE_PATH__: JSON.stringify(basePath),
+      __DOCUMENT_PDF_CMAPS__: JSON.stringify(readdirSync(path.resolve(root, 'node_modules/pdfjs-dist/cmaps')).filter(name => /^[A-Za-z0-9_-]+\.bcmap$/.test(name))),
+      __DOCUMENT_PDF_FONTS__: JSON.stringify(readdirSync(path.resolve(root, 'node_modules/pdfjs-dist/standard_fonts')).filter(name => /^[A-Za-z0-9_-]+\.(?:pfb|ttf)$/.test(name))),
+    }),
     new rspack.CopyRspackPlugin({
-      patterns: [{ from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' }],
+      patterns: [
+        { from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' },
+        { from: path.resolve(root, 'node_modules/pdfjs-dist/cmaps'), to: 'static/pdfjs/cmaps', toType: 'dir' },
+        { from: path.resolve(root, 'node_modules/pdfjs-dist/standard_fonts'), to: 'static/pdfjs/standard_fonts', toType: 'dir' },
+      ],
     }),
   ],
   performance: { hints: false },

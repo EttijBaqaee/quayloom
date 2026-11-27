@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { randomBytes, createHash, scryptSync, timingSafeEqual, createCipheriv, createDecipheriv } from 'node:crypto'
 import { createAccessStore } from './access.mjs'
+import { defaultWebToolsConfig, validateWebToolsConfig } from './web-tools.mjs'
 
 export const capabilities = (overrides = {}) => ({ thinking: false, search: false, files: false, vision: false, speech: false, ...overrides })
 const model = (id, name, caps = {}) => ({ id, name, capabilities: capabilities(caps), maxOutputTokens: 4096 })
@@ -83,6 +84,42 @@ export function openStore(dataDir, { adminPassword, masterKey } = {}) {
     const value = p ? { providerId: p.id, modelId: p.models[0].id } : null
     setSetting('defaultModel', value); return value
   }
+  const webToolsConfig = (includeSecrets = false) => {
+    const saved = getSetting('webTools')
+    const config = validateWebToolsConfig(saved?.config ?? defaultWebToolsConfig(), () => {})
+    return Object.fromEntries(['search', 'fetch'].map(name => [name, {
+      ...config[name], hasApiKey: Boolean(saved?.secrets?.[name]),
+      ...(includeSecrets === true ? { apiKey: decrypt(saved?.secrets?.[name]) } : {}),
+    }]))
+  }
+  const saveWebToolsConfig = (config, input = {}) => {
+    const normalized = validateWebToolsConfig(config, () => {})
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(name => !['search', 'fetch'].includes(name))) throw Object.assign(new Error('Invalid web tools credential update'), { status: 400 })
+    // Recheck credential update fields here too: the store must never persist
+    // a plaintext key slipped into the normalized configuration argument.
+    const changes = { search: { ...normalized.search }, fetch: { ...normalized.fetch } }
+    for (const name of ['search', 'fetch']) {
+      const update = input?.[name]
+      const allowed = ['provider', 'baseUrl', 'allowPrivateNetwork', 'hasApiKey', 'apiKey', 'clearApiKey', ...(name === 'search' ? ['maxResults'] : [])]
+      if (update != null && (typeof update !== 'object' || Array.isArray(update) || Object.keys(update).some(key => !allowed.includes(key)))) throw Object.assign(new Error('Invalid web tools credential update'), { status: 400 })
+      if (update?.apiKey !== undefined) changes[name].apiKey = update.apiKey
+      if (update?.clearApiKey !== undefined) changes[name].clearApiKey = update.clearApiKey
+    }
+    validateWebToolsConfig(changes, () => {})
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const previous = getSetting('webTools')
+      const secrets = Object.fromEntries(['search', 'fetch'].map(name => {
+        const update = changes[name]
+        const secret = update.clearApiKey ? null
+          : update.apiKey?.trim() ? encrypt(update.apiKey) : previous?.secrets?.[name] || null
+        return [name, secret]
+      }))
+      setSetting('webTools', { config: normalized, secrets })
+      db.exec('COMMIT')
+    } catch (error) { db.exec('ROLLBACK'); throw error }
+    return webToolsConfig()
+  }
   const access = createAccessStore(db, { encrypt, decrypt })
   const sessionInfo = token => {
     if (typeof token !== 'string' || !token || token.length > 128) return null
@@ -94,7 +131,7 @@ export function openStore(dataDir, { adminPassword, masterKey } = {}) {
   }
   return {
     ...access, sessionInfo,
-    db, initialPassword, getSetting, setSetting, providers, provider, reconcileDefault,
+    db, initialPassword, getSetting, setSetting, providers, provider, reconcileDefault, webToolsConfig, saveWebToolsConfig,
     verifyPassword(password) {
       const record = getSetting('password')
       if (typeof password !== 'string' || password.length > 1024) return false

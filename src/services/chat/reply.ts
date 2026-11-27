@@ -1,4 +1,5 @@
 import { selectedTarget } from '../studio.js'
+import { isResponsesContext, mergeResponsesContexts } from './responsesContext.js'
 import type {
   AssistantBlockParam,
   FileBlockParam,
@@ -33,11 +34,15 @@ const toReplyBlock = (block: OutputBlockStart, now: number): ReplyBlock | null =
     case 'text':
       return { type: 'text', text: block.text, citations: block.citations ?? [] }
     case 'thinking':
+      if (block.responsesContext !== undefined && (!isResponsesContext(block.responsesContext) || block.thinking !== '' || block.signature !== '' || block.opaqueReasoning !== undefined)) {
+        throw new Error('Invalid Responses context anchor')
+      }
       return {
         type: 'thinking',
         thinking: block.thinking,
         signature: block.signature,
         ...(block.opaqueReasoning ? { opaqueReasoning: block.opaqueReasoning } : {}),
+        ...(block.responsesContext ? { responsesContext: block.responsesContext } : {}),
         startedAt: now,
       }
     case 'server_tool_use':
@@ -84,6 +89,19 @@ export const applyEvent = (
       if (!block) {
         // 客户端工具内容不保存；未完成的工具往返也不能作为续写前缀。
         return event.content_block.type === 'tool_use' ? { ...next, prefix: false } : next
+      }
+      if (block.type === 'thinking' && block.responsesContext !== undefined) {
+        const incoming = block.responsesContext
+        if (incoming.provider_id !== next.providerId || incoming.model_id !== next.model) { throw new Error('Invalid Responses context provenance') }
+        const anchors = next.blocks.flatMap((part, index) => part.type === 'thinking' && part.responsesContext !== undefined ? [{ block: part, index }] : [])
+        if (anchors.length > 1) { throw new Error('Multiple Responses context anchors') }
+        const previous = anchors[0]
+        if (previous) {
+          if (previous.block.thinking !== '' || previous.block.signature !== undefined && previous.block.signature !== '' || previous.block.opaqueReasoning !== undefined) { throw new Error('Invalid Responses context anchor') }
+          const responsesContext = mergeResponsesContexts(previous.block.responsesContext, incoming)
+          blockIndexes.set(event.index, previous.index)
+          return updateBlock(next, previous.index, part => part.type === 'thinking' ? { ...part, responsesContext } : part)
+        }
       }
       blockIndexes.set(event.index, next.blocks.length)
       return { ...next, blocks: [...next.blocks, block] }
@@ -228,8 +246,28 @@ const toAssistantParam = (
 ): Extract<MessageParam, { role: 'assistant' }> => {
   // Saved metadata is independent of the UI thinking toggle. Never reuse it
   // across a channel/model change; portable text history still goes through.
+  const contexts = blocks.flatMap(block => block.type === 'thinking' && block.responsesContext !== undefined ? [block] : [])
+  if (contexts.length > 1) { throw new Error('Multiple Responses context anchors') }
+  const savedContext = contexts[0]?.responsesContext
+  if (savedContext !== undefined && (!isResponsesContext(savedContext) || savedContext.provider_id !== providerId || savedContext.model_id !== model || contexts[0].thinking !== '' || contexts[0].signature !== undefined && contexts[0].signature !== '' || contexts[0].opaqueReasoning !== undefined)) {
+    throw new Error('Invalid Responses context provenance')
+  }
+  const context: AssistantBlockParam[] = savedContext && providerId === targetProviderId && model === targetModelId
+    ? [{ type: 'thinking', thinking: '', signature: '', responsesContext: savedContext }]
+    : []
+  if (context.length) {
+    // Preserve the exact visible text for the adapter's canonical-context guard.
+    // Legacy portable formatting can insert separators across tool/think blocks.
+    const rawTextConcat = blocks.filter(block => block.type === 'text').map(block => block.text).join('')
+    return {
+      role: 'assistant',
+      ...(providerId ? { provider_id: providerId } : {}),
+      ...(model ? { model_id: model } : {}),
+      content: [...context, ...(rawTextConcat ? [{ type: 'text' as const, text: rawTextConcat }] : [])],
+    }
+  }
   const opaque: AssistantBlockParam[] = blocks.flatMap((block) => {
-    if (block.type !== 'thinking' || !block.opaqueReasoning || providerId !== targetProviderId || model !== targetModelId) { return [] }
+    if (context.length || block.type !== 'thinking' || !block.opaqueReasoning || providerId !== targetProviderId || model !== targetModelId) { return [] }
     const value = block.opaqueReasoning
     return value.provider_id === targetProviderId && value.model_id === targetModelId
       ? [{ type: 'thinking' as const, thinking: '', signature: '', opaqueReasoning: value }]
@@ -292,7 +330,9 @@ const toAssistantParam = (
     // Stored origin lets the server retain same-provider READ_LINK signatures only.
     ...(providerId ? { provider_id: providerId } : {}),
     ...(model ? { model_id: model } : {}),
-    content: [...opaque, ...content.filter((block) => block.type !== 'text' || block.text !== '')],
+    // The adapter replaces this entire assistant turn with the ordered context
+    // for matching Responses targets. Portable text remains available otherwise.
+    content: [...context, ...opaque, ...content.filter((block) => block.type !== 'text' || block.text !== '')],
   }
 }
 

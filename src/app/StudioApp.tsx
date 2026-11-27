@@ -70,7 +70,7 @@ function Login() {
     <label className="studio-field">{mode === 'code' ? tUi('使用码') : tUi('管理员密码')}<input key={mode} name={mode === 'code' ? 'access-code' : 'admin-password'} type="password" autoComplete={mode === 'code' ? 'off' : 'current-password'} spellCheck={false} maxLength={mode === 'code' ? 64 : 1024} required autoFocus value={credential} onChange={e => setCredential(e.target.value)} onBlur={e => setCredential(e.target.value.trim())} placeholder={mode === 'code' ? tUi('输入管理员提供的使用码') : tUi('输入管理员密码')} /></label>
     {error && <p className="studio-error" role="alert">{error}</p>}
     <button className="studio-primary" disabled={busy}>{busy ? tUi('正在登录…') : tUi('进入工作空间 →')}</button>
-    <a href={appPath('/api/source.zip')} download>{tUi('Quayloom 源码 · AGPL-3.0')}</a>
+    <a href="https://github.com/EttijBaqaee/quayloom" target="_blank" rel="noopener noreferrer">GitHub</a>
   </form></main>
 }
 
@@ -114,7 +114,7 @@ export function StudioToolbar({ mobile = false }: { mobile?: boolean }) {
     <AppearanceControls />
     {principal?.role === 'admin' ? <><a className="studio-admin-link" href={appPath('/admin')}>{tUi('模型与使用码管理')}</a><button className="studio-quiet" aria-haspopup="dialog" onClick={() => { closeMenu(); useWorkspaceOverlay.setState({ type: 'conversations' }) }}>{tUi('使用码对话')}</button></> : <button className="studio-quiet studio-admin-link" aria-expanded={showUsage} onClick={() => { closeMenu(); useWorkspaceOverlay.setState({ type: showUsage ? null : 'usage' }) }}>{tUi('我的额度')}</button>}
     {/\bQuayloomAndroid\//.test(navigator.userAgent) && <a className="studio-quiet" href={appPath('/__quayloom_android/menu')} onClick={closeMenu}>{tUi('客户端设置')}</a>}
-    <a className="studio-quiet" href={appPath('/api/source.zip')} download onClick={closeMenu}>{tUi('源码 · AGPL-3.0')}</a>
+    <a className="studio-quiet" href="https://github.com/EttijBaqaee/quayloom" target="_blank" rel="noopener noreferrer" onClick={closeMenu}>GitHub</a>
     <button className="studio-quiet" onClick={() => { closeMenu(); void logout().catch(e => setLogoutError(e.message)) }}>{tUi('退出')}</button>
   </>
   return <><div className={`studio-toolbar${mobile ? ' is-mobile' : ''}`}>

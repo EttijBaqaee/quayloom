@@ -154,12 +154,13 @@ const assistantFragments = (message: AssistantMessage): Fragment[] => {
     }
     const converted: Fragment[] =
       block.type === 'thinking'
-        ? block.thinking || block.opaqueReasoning
+        ? block.thinking || block.opaqueReasoning || block.responsesContext
           ? [
               {
                 type: 'THINK',
                 content: block.thinking,
                 ...(block.opaqueReasoning ? { opaque_reasoning: block.opaqueReasoning } : {}),
+                ...(block.responsesContext ? { responses_context: block.responsesContext } : {}),
                 elapsed_secs:
                   block.elapsedSeconds ??
                   (block.startedAt === undefined || block.endedAt === undefined

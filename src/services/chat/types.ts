@@ -3,6 +3,7 @@ import type { ApiErrorKind } from '../api/client.js'
 import type {
   ChatModel,
   OpaqueReasoning,
+  ResponsesContext,
   MessageUsage,
   ServerToolBlock,
   StopDetails,
@@ -52,6 +53,8 @@ export type ThinkingPart = {
   signature?: string
   /** 非可见上下文；同渠道同模型才可回传。 */
   opaqueReasoning?: OpaqueReasoning
+  /** 一轮回复仅一个有序 Responses 回传锚点；不参与展示。 */
+  responsesContext?: ResponsesContext
   /** content_block_start 的时间；没有事件时间的历史块缺省 */
   startedAt?: number
   /** content_block_stop（或回复结束）的时间 */
@@ -77,6 +80,34 @@ export type ReplyBlock = ThinkingPart | TextPart | ServerToolBlock
  * done：收到 message_stop；stopped：主动停止或授权失效；error：请求或流出错。刷新仅重连，不中断服务端生成
  */
 export type ReplyStatus = 'pending' | 'streaming' | 'done' | 'stopped' | 'error'
+
+/** Fixed classifications only; never contains upstream IDs, text, URLs or ciphertext. */
+export type ResponsesIdentityDiagnostic = {
+  schema: 'responses-identity-v1'
+  code: 'output_item_identity_reused'
+  itemType: 'reasoning' | 'web_search_call' | 'message' | 'function_call' | 'other'
+  phase: 'added' | 'done' | 'final' | 'delta'
+  nativeEnabled: boolean
+  completedNativeSearch: boolean
+  summary: 'absent' | 'null' | 'empty' | 'nonempty' | 'invalid' | 'unavailable'
+  content: ResponsesIdentityDiagnostic['summary']
+  cipher: ResponsesIdentityDiagnostic['summary']
+  originalCipher: ResponsesIdentityDiagnostic['summary']
+  originalLifecycleClosed: boolean
+  originalShapeValid: boolean
+  originalVisible: boolean
+  previousEmptyClosed: boolean
+  previousOpaqueClosed: boolean
+}
+
+/** Exact fixed classifications for a rejected done/final search snapshot pair. */
+export type ResponsesSearchSnapshotDiagnostic = {
+  schema: 'responses-search-snapshot-v1'
+  code: 'completed_search_mismatch'
+  reason: 'action_presence' | 'action_type' | 'query_list' | 'independent_query' | 'url' | 'pattern' | 'sources_presence' | 'sources_count' | 'source_type' | 'source_identity' | 'source_metadata' | 'comparison_other'
+  previousSources: 'absent' | 'empty' | 'nonempty' | 'unavailable'
+  currentSources: ResponsesSearchSnapshotDiagnostic['previousSources']
+}
 
 export type AssistantMessage = MessageBranch & {
   id: string
@@ -105,6 +136,8 @@ export type AssistantMessage = MessageBranch & {
     kind: ApiErrorKind | 'upload'
     message: string
     status?: number
+    /** Server-generated fixed classifications; not rendered as reply text. */
+    diagnostic?: ResponsesIdentityDiagnostic | ResponsesSearchSnapshotDiagnostic
     localMessage?: TranslationMessage
     /** 仅 upload：重新上传是否可能成功（网络、限流、服务端繁忙）；过大、格式不支持为 false */
     retryable?: boolean

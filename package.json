@@ -1,7 +1,7 @@
 {
   "name": "quayloom",
   "packageManager": "pnpm@11.28.5",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "基于官方 chat-demo 的多供应商聊天应用，含独立管理后台和本地配额控制。",
   "engines": { "node": ">=24.0.0" },
   "license": "AGPL-3.0-only",
@@ -33,9 +33,11 @@
     "mermaid": "11.10.1",
     "micromark-extension-gfm": "3.0.0",
     "micromark-extension-llm-math": "3.1.0",
+    "pdfjs-dist": "5.4.624",
     "prismjs": "1.30.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "saxes": "6.0.0",
     "zustand": "4.4.7"
   },
   "devDependencies": {

@@ -1,4 +1,5 @@
 import { BackupError, fail } from './errors.js'
+import { isResponsesContext } from '../responsesContext.js'
 import {
   EXPORT_FORMAT_VERSION,
   type ChatMessage,
@@ -117,13 +118,17 @@ const readFragment: Read<Fragment> = (value) => {
       return { type, content: string(item.content) }
     case 'TEMPLATE_RESPONSE':
       return { type, content: string(item.content) }
-    case 'THINK':
+    case 'THINK': {
+      const context = item.responses_context
+      if ('responses_context' in item && (!isResponsesContext(context) || item.content !== '' || 'opaque_reasoning' in item)) { return invalid() }
       return {
         type,
         content: string(item.content),
         elapsed_secs: nullable(number)(item.elapsed_secs),
         ...('opaque_reasoning' in item ? { opaque_reasoning: opaqueReasoning(item.opaque_reasoning) } : {}),
+        ...(isResponsesContext(context) ? { responses_context: context } : {}),
       }
+    }
     case 'TIP':
       return { type, content: string(item.content), style: tipStyle(item.style) }
     case 'CONTENT_RISK':
@@ -197,6 +202,12 @@ const readFragment: Read<Fragment> = (value) => {
 
 /** 单个内容片段不兼容不影响其余消息；容器、元数据和后续消息树校验仍严格执行。 */
 const fragment: Read<Fragment | null> = (value) => {
+  // Ordered/ciphertext context must never disappear under the legacy
+  // best-effort fragment compatibility path.
+  if (value !== null && typeof value === 'object' && 'responses_context' in value) {
+    if (record(value).type !== 'THINK') { return invalid() }
+    return readFragment(value)
+  }
   try {
     return readFragment(value)
   } catch (error) {
@@ -209,10 +220,16 @@ const fragment: Read<Fragment | null> = (value) => {
 
 const message: Read<ChatMessage> = (value) => {
   const item = record(value)
+  const role = oneOf('USER', 'ASSISTANT')(item.role)
+  const fragments = list(fragment)(item.fragments).filter((part): part is Fragment => part !== null)
+  const contexts = fragments.flatMap(part => part.type === 'THINK' && part.responses_context ? [part.responses_context] : [])
+  if (contexts.length > 1 || contexts.length && role !== 'ASSISTANT') { return invalid() }
+  const origin = contexts[0]
+  if (origin && fragments.some(part => part.type === 'THINK' && part.opaque_reasoning && (part.opaque_reasoning.provider_id !== origin.provider_id || part.opaque_reasoning.model_id !== origin.model_id))) { return invalid() }
   return {
     id: count(item.id),
     parent_id: nullable(count)(item.parent_id),
-    role: oneOf('USER', 'ASSISTANT')(item.role),
+    role,
     status: oneOf(
       'WIP',
       'FINISHED',
@@ -226,7 +243,7 @@ const message: Read<ChatMessage> = (value) => {
     search_enabled: boolean(item.search_enabled),
     accumulated_token_usage: count(item.accumulated_token_usage),
     inserted_at: time(item.inserted_at),
-    fragments: list(fragment)(item.fragments).filter((item): item is Fragment => item !== null),
+    fragments,
   }
 }
 

@@ -34,8 +34,24 @@ export type TextBlock = { type: 'text'; text: string; citations?: TextCitation[]
 /** Responses 的不透明上下文，只用于同渠道同模型回传；不可作为可见思考。 */
 export type OpaqueReasoning = { id: string; encrypted_content: string; provider_id: string; model_id: string }
 
-/** 思考块；opaqueReasoning 是内部元数据，不渲染、不直接透传。 */
-export type ThinkingBlock = { type: 'thinking'; thinking: string; signature: string; opaqueReasoning?: OpaqueReasoning }
+/** 本地有序回传数据；每个 output 数组位置就是原 raw output_index。具体 API 字段由共享 schema 验证。 */
+export type ResponsesContextItem = { type: 'reasoning' | 'message' | 'web_search_call' | 'function_call'; id: string; [key: string]: unknown }
+export type ResponsesFunctionOutput = { type: 'function_call_output'; call_id: string; output: string }
+export type ResponsesContext = {
+  version: 1
+  provider_id: string
+  model_id: string
+  rounds: {
+    response_id: string
+    output: ResponsesContextItem[]
+    /** 终态快照仅作本地证据，绝不回传或代替 canonical output。 */
+    raw_output?: ResponsesContextItem[]
+    tool_outputs?: ResponsesFunctionOutput[]
+  }[]
+}
+
+/** 思考块；两个上下文字段均为内部元数据，不渲染、不直接透传。 */
+export type ThinkingBlock = { type: 'thinking'; thinking: string; signature: string; opaqueReasoning?: OpaqueReasoning; responsesContext?: ResponsesContext }
 
 /** 服务端识别调用所属联网能力用的 kind，区分文字搜索、图搜及边想边搜。 */
 export type ServerToolKind =
@@ -190,7 +206,12 @@ export type CreateMessageRequest = {
   system: string
   messages: MessageParam[]
   thinking: { type: 'enabled' | 'disabled' }
-  tools: (DeepseekWebSearchTool | DeepseekReadUrlTool | { type: 'web_search'; name: 'web_search' })[]
+  tools: (DeepseekWebSearchTool | DeepseekReadUrlTool | {
+    type: 'web_search'
+    name: 'web_search'
+    /** Native OpenAI Responses only. False disables Quayloom's companion page fetch. */
+    allow_web_fetch?: boolean
+  })[]
   safety_check: { level: 'high' }
   title?: { enabled: boolean }
 }

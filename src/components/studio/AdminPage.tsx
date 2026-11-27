@@ -14,6 +14,8 @@ import { NotificationsButton } from './Notifications.js'
 import { QuotaEditor, UsagePanel } from './QuotaPanel.js'
 import { UsageAnalytics } from './UsageAnalytics.js'
 import { UpdatePanel } from './UpdatePanel.js'
+import { WebToolsPanel } from './WebToolsPanel.js'
+import { webToolsMessages } from '../../i18n/web-tools.en.js'
 
 const fallbackPresets: Preset[] = [
   { id: 'deepseek', name: 'DeepSeek', type: 'deepseek', baseUrl: 'https://api.deepseek.com', models: [newModel('deepseek-flash')] },
@@ -33,6 +35,7 @@ function draftFor(preset: Preset): Draft { return { quota: defaultQuota(), name:
 
 export function AdminPage() {
   const t = useUiText(adminMessages)
+  const wt = useUiText(webToolsMessages)
   const [data, setData] = useState<ProviderList>({ providers: [], defaultModel: null, presets: [] })
   const [draft, setDraft] = useState<Draft | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -64,7 +67,7 @@ export function AdminPage() {
   function changeProviderType(type: Provider['type']) {
     if (!draft) {return}
     patch({ type, models: draft.models.map(m => {
-      const capabilities = { ...m.capabilities, search: false, ...(type !== 'deepseek' ? { speech: false } : {}), ...(type === 'openai' ? { files: false } : {}) }
+      const capabilities = { ...m.capabilities, search: false, ...(type !== 'deepseek' ? { speech: false } : {}) }
       if (type === 'anthropic') {return { ...m, capabilities, searchAdapter: undefined, openaiProtocol: undefined, reasoningEfforts: undefined, reasoningEffort: undefined }}
       const supported = getSupportedReasoningEfforts(m.reasoningEfforts, type)
       const reasoningEfforts = m.reasoningEfforts !== undefined && supported.length ? supported : undefined
@@ -75,7 +78,7 @@ export function AdminPage() {
     const current = draft?.models[index]
     if (!draft || !current) {return}
     const next = { ...current, ...value }
-    if (draft.type === 'openai' && next.openaiProtocol !== 'responses') {
+    if (draft.type === 'openai' && next.openaiProtocol !== 'responses' && next.searchAdapter !== 'server-tool-search') {
       next.searchAdapter = undefined
       next.capabilities = { ...next.capabilities, search: false }
     }
@@ -121,11 +124,12 @@ export function AdminPage() {
   }, [dirty])
 
   return <div className="studio-admin">
-    <header className="studio-admin-header"><a href={appPath('/')} className="studio-brand harbor-brand" aria-label={t('Quayloom 多供应商 AI 工作台首页')}><HarborMark />Quayloom <span>{t('多供应商 AI 工作台')}</span></a><nav><AppearanceControls /><NotificationsButton /><a href={appPath('/api/source.zip')} download>{t('源码 · AGPL-3.0')}</a><a href={appPath('/')}>{t('← 返回聊天')}</a><button className="studio-quiet" onClick={() => void logout().catch(e => setError(e.message))}>{t('退出登录')}</button></nav></header>
+    <header className="studio-admin-header"><a href={appPath('/')} className="studio-brand harbor-brand" aria-label={t('Quayloom 多供应商 AI 工作台首页')}><HarborMark />Quayloom <span>{t('多供应商 AI 工作台')}</span></a><nav><AppearanceControls /><NotificationsButton /><a href="https://github.com/EttijBaqaee/quayloom" target="_blank" rel="noopener noreferrer">GitHub</a><a href={appPath('/')}>{t('← 返回聊天')}</a><button className="studio-quiet" onClick={() => void logout().catch(e => setError(e.message))}>{t('退出登录')}</button></nav></header>
     <main className="studio-admin-main">
       <div className="studio-page-title"><div><h1>{t('模型管理')}</h1></div><button className="studio-primary" disabled={busy || loading} onClick={() => switchDraft(draftFor(presets[0]))}>{t('＋ 添加供应商')}</button></div>
       {error && <div className="studio-banner studio-error" role="alert">{error}</div>}{notice && <div className="studio-banner studio-success" role="status">{notice}</div>}
       <UpdatePanel />
+      <WebToolsPanel />
       <div className="studio-admin-grid">
         <aside className="studio-provider-list"><div className="studio-section-title">{t('供应商')} <span>{data.providers.length}</span><button disabled={busy} className="studio-quiet" onClick={() => void run(async () => { await reload(); setNotice(t('已刷新配置。')) })}>{t('刷新')}</button></div>
           {loading ? <p role="status">{t('正在加载…')}</p> : !data.providers.length ? <div className="studio-empty">{t('暂无供应商。')}</div> : data.providers.map(p => <article key={p.id} className={`studio-provider-card ${draft?.id === p.id ? 'is-selected' : ''}`}>
@@ -160,11 +164,12 @@ export function AdminPage() {
                   })}
                 </div><small>{t('仅勾选当前渠道实际支持的值。')}</small></div>
               </>}
-              {draft.type !== 'deepseek' && <label className="studio-field">{t('原生联网搜索')}<select aria-label={t('模型 {model} 搜索协议', { model: m.id || index + 1 })} value={m.searchAdapter ?? ''} disabled={draft.type === 'openai' && m.openaiProtocol !== 'responses'} onChange={e => updateModel(index, { searchAdapter: (e.target.value || undefined) as StudioModel['searchAdapter'], capabilities: { ...m.capabilities, search: false } })}><option value="">{t('未配置')}</option>{draft.type === 'openai' ? <option value="openai-web-search">OpenAI Responses · web_search</option> : <option value="anthropic-web-search">Anthropic · web_search_20250305</option>}</select><small>{draft.type === 'openai' && m.openaiProtocol !== 'responses' ? t('需先选择 Responses 协议。') : t('仅在渠道实际支持时启用；搜索可能另计费。')}</small></label>}
+              {draft.type !== 'deepseek' && <label className="studio-field">{wt('搜索模式')}<select aria-label={wt('模型 {model} 搜索协议', { model: m.id || index + 1 })} value={m.searchAdapter ?? ''} onChange={e => updateModel(index, { searchAdapter: (e.target.value || undefined) as StudioModel['searchAdapter'], capabilities: { ...m.capabilities, search: false } })}><option value="">{wt('未配置')}</option>{draft.type === 'openai' ? <><option value="openai-web-search" disabled={m.openaiProtocol !== 'responses'}>{wt('原生搜索（OpenAI Responses）')}</option><option value="server-tool-search">{wt('独立搜索服务')}</option></> : <option value="anthropic-web-search">{wt('原生搜索（Anthropic）')}</option>}</select><small>{m.searchAdapter === 'server-tool-search' ? wt('独立模式使用上方网页服务配置；需另行勾选联网搜索。') : draft.type === 'openai' && m.openaiProtocol !== 'responses' ? wt('原生 OpenAI 搜索需先选择 Responses 协议。') : wt('仅在渠道实际支持时启用；搜索可能另计费。')}</small></label>}
               <div className="studio-checks">{(Object.keys(capLabels) as (keyof typeof capLabels)[]).map(cap => {
-                const blocked = cap === 'search' ? !(draft.type === 'deepseek' || draft.type === 'openai' && m.openaiProtocol === 'responses' && m.searchAdapter === 'openai-web-search' || draft.type === 'anthropic' && m.searchAdapter === 'anthropic-web-search') : cap === 'speech' ? draft.type !== 'deepseek' : cap === 'files' && draft.type === 'openai'
-                return <label key={cap} title={blocked ? t('当前协议适配器不支持') : t('仅在供应商真实支持时开启')}><input type="checkbox" disabled={blocked} checked={!blocked && m.capabilities[cap]} onChange={e => updateModel(index, { capabilities: { ...m.capabilities, [cap]: e.target.checked } })} />{t(capLabels[cap])}</label>
+                const blocked = cap === 'search' ? !(draft.type === 'deepseek' || draft.type === 'openai' && (m.searchAdapter === 'server-tool-search' || m.openaiProtocol === 'responses' && m.searchAdapter === 'openai-web-search') || draft.type === 'anthropic' && m.searchAdapter === 'anthropic-web-search') : cap === 'speech' ? draft.type !== 'deepseek' : false
+                return <label key={cap} title={blocked ? t('当前协议适配器不支持') : t('仅在供应商真实支持时开启')}><input type="checkbox" disabled={blocked} checked={!blocked && m.capabilities[cap]} onChange={e => updateModel(index, { capabilities: { ...m.capabilities, [cap]: e.target.checked } })} />{t(cap === 'files' && draft.type === 'openai' ? '文档（提取文字）' : capLabels[cap])}</label>
               })}</div>
+              {draft.type === 'openai' && <small>{t('本地提取 PDF、DOCX、PPTX、XLSX 与 UTF-8 文本；不支持 OCR、加密文档或旧版 DOC/PPT/XLS。单文件 10 MiB，提取最多 200000 字符。')}</small>}
               {draft.id && data.providers.find(p => p.id === draft.id)?.models.some(saved => saved.id === m.id) && <button type="button" disabled={dirty || !draft.enabled || defaultIs(draft.id, m.id)} onClick={() => void setDefault({ providerId: (draft.id ?? ''), modelId: m.id })}>{defaultIs(draft.id, m.id) ? t('✓ 当前默认模型') : t('设为默认模型')}</button>}
             </article>)}
             </fieldset>

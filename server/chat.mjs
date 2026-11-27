@@ -3,7 +3,8 @@ import { fail, validateChat } from './validation.mjs'
 import { allowsModel } from './access.mjs'
 import { performance } from 'node:perf_hooks'
 import { createRunStatistics, interruptedStatistics } from './statistics.mjs'
-import { isOpaqueReasoning } from './adapters.mjs'
+import { isOpaqueReasoning, safeAdapterDiagnostic } from './adapters.mjs'
+import { isResponsesContext, mergeResponsesContexts } from './responses-context.mjs'
 import { deriveSessionFallback, normalizeSessionTitle } from './titles.mjs'
 import { createResponsesRoundQuota } from './chat-quota.mjs'
 
@@ -27,9 +28,14 @@ export function validateSession(value) {
       for (const file of message.files) if (!file || !validId(file.id) || typeof file.name !== 'string' || !Number.isSafeInteger(file.size) || file.size < 0 || typeof file.isImage !== 'boolean' || typeof file.mimeType !== 'string' || file.serverId !== null && typeof file.serverId !== 'string') fail(400, 'Invalid attachment')
     } else if (message.role === 'assistant') {
       if (!Array.isArray(message.blocks) || !['pending', 'streaming', 'done', 'stopped', 'error'].includes(message.status)) fail(400, 'Invalid assistant message')
+      let contextSeen = false
       for (const block of message.blocks) {
         if (!block || typeof block.type !== 'string' || block.type === 'text' && typeof block.text !== 'string' || block.type === 'thinking' && typeof block.thinking !== 'string') fail(400, 'Invalid reply block')
         if (block.opaqueReasoning !== undefined && (block.type !== 'thinking' || !isOpaqueReasoning(block.opaqueReasoning) || block.opaqueReasoning.provider_id !== message.providerId || block.opaqueReasoning.model_id !== message.model)) fail(400, 'Invalid opaque reasoning provenance')
+        if (block.responsesContext !== undefined) {
+          if (contextSeen || block.type !== 'thinking' || block.thinking !== '' || block.signature !== undefined && block.signature !== '' || block.opaqueReasoning !== undefined || !isResponsesContext(block.responsesContext) || block.responsesContext.provider_id !== message.providerId || block.responsesContext.model_id !== message.model) fail(400, 'Invalid Responses context provenance')
+          contextSeen = true
+        }
       }
     } else fail(400, 'Invalid message role')
   }
@@ -57,6 +63,21 @@ export function projectEvent(reply, event, indexes, now = Date.now()) {
   if (event.type === 'content_block_start') {
     indexes.delete(event.index)
     const block = event.content_block
+    if (block?.responsesContext !== undefined) {
+      const incoming = block.responsesContext
+      if (block.type !== 'thinking' || block.thinking !== '' || block.signature !== undefined && block.signature !== '' || block.opaqueReasoning !== undefined || !isResponsesContext(incoming)) throw new Error('Invalid Responses context anchor')
+      if (incoming.provider_id !== next.providerId || incoming.model_id !== next.model) throw new Error('Invalid Responses context provenance')
+      const anchors = next.blocks.flatMap((part, index) => part.type === 'thinking' && part.responsesContext !== undefined ? [{ block: part, index }] : [])
+      if (anchors.length > 1) throw new Error('Multiple Responses context anchors')
+      const previous = anchors[0]
+      if (previous) {
+        if (previous.block.thinking !== '' || previous.block.signature !== undefined && previous.block.signature !== '' || previous.block.opaqueReasoning !== undefined) throw new Error('Invalid Responses context anchor')
+        const responsesContext = mergeResponsesContexts(previous.block.responsesContext, incoming)
+        indexes.set(event.index, previous.index)
+        next.blocks = next.blocks.map((part, index) => index === previous.index ? { ...part, responsesContext } : part)
+        return next
+      }
+    }
     if (['text', 'thinking', 'server_tool_use', 'web_search_tool_result', 'web_fetch_tool_result'].includes(block?.type)) {
       indexes.set(event.index, next.blocks.length)
       next.blocks = [...next.blocks, { ...block, ...(block.type === 'thinking' ? { startedAt: now } : {}) }]
@@ -79,7 +100,7 @@ export function projectEvent(reply, event, indexes, now = Date.now()) {
 }
 
 /** Single-process owner; HTTP subscribers never own or abort these tasks. */
-export function createServerChat({ store, adapters, ledger, controllers, accessControllers, images, statisticsFactory = createRunStatistics }) {
+export function createServerChat({ store, adapters, ledger, controllers, accessControllers, images, documents, statisticsFactory = createRunStatistics }) {
   const db = store.db, running = new Map(), tasks = new Set(), liveStatistics = new Map()
   db.exec(`CREATE TABLE IF NOT EXISTS chat_sessions(owner TEXT NOT NULL,id TEXT NOT NULL,title TEXT NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,revision INTEGER NOT NULL,snapshot TEXT NOT NULL,PRIMARY KEY(owner,id));
     CREATE TABLE IF NOT EXISTS chat_jobs(owner TEXT NOT NULL,id TEXT NOT NULL,session_id TEXT NOT NULL,reply_id TEXT NOT NULL,status TEXT NOT NULL,request_hash TEXT NOT NULL,metrics TEXT,PRIMARY KEY(owner,id));
@@ -147,7 +168,7 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
     const timer = setTimeout(() => controller.abort(), Math.max(1, Math.min(600000, access?.expiresAt ? access.expiresAt - Date.now() : Infinity)))
     try {
       metrics.startModel()
-      for await (const event of adapters.streamChat(provider, model, body, { signal: controller.signal, responsesRound: createResponsesRoundQuota({ store, ledger, reservation, provider, model, access }) })) {
+      for await (const event of adapters.streamChat(provider, model, body, { signal: controller.signal, webToolsConfig: store.webToolsConfig?.(true), responsesRound: createResponsesRoundQuota({ store, ledger, reservation, provider, model, access }) })) {
         controller.signal.throwIfAborted()
         size += Buffer.byteLength(JSON.stringify(event)); if (size > outputLimit) throw Error('生成内容超过会话大小限制')
         if (event.type === 'error') throw Error(event.error?.message || 'Upstream stream failed')
@@ -177,7 +198,8 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
     } catch (error) {
       status = controller.signal.aborted ? 'stopped' : 'error'
       const message = access ? '该渠道暂时无法完成请求，请稍后重试或联系管理员' : String(error?.message || '生成失败').split(provider.apiKey || '\0').join('[REDACTED]').replace(/\b(Bearer\s+)[^\s"']+/gi, '$1[REDACTED]').slice(0, 2000)
-      reply = finishReply(reply, status, status === 'error' ? { kind: 'stream', message } : undefined)
+      const diagnostic = !access && status === 'error' ? safeAdapterDiagnostic(error) : undefined
+      reply = finishReply(reply, status, status === 'error' ? { kind: 'stream', message, ...(diagnostic ? { diagnostic } : {}) } : undefined)
     } finally {
       clearTimeout(timer); clearTimeout(checkpointTimer)
       outcome.completed = completed; outcome.usage = completed && usageDelta ? usage : undefined
@@ -212,7 +234,8 @@ export function createServerChat({ store, adapters, ledger, controllers, accessC
       if (body.messages.some(m => !textOnly(m.content)) || body.system !== undefined && !textOnly(body.system) || body.tools?.length || body.tool_choice || session.messages.some(m => m.role === 'user' && m.files.length)) fail(403, '使用码当前仅支持文本与推理聊天')
     }
     body = images?.resolve(principal.id, provider, body) ?? body
-    adapters.validateChatRequest?.(provider, model, body)
+    body = documents?.resolve(principal.id, provider, body) ?? body
+    adapters.validateChatRequest?.(provider, model, body, { webToolsConfig: store.webToolsConfig?.(true) })
     const controller = new AbortController(), job = { owner: principal.id, id: input.id, session_id: session.id, reply_id: reply.id, status: 'running', request_hash: hash }
     const previous = load(principal.id, session.id)
     controller.manualTitle = Boolean(db.prepare('SELECT title_manual FROM chat_sessions WHERE owner=? AND id=?').get(principal.id, session.id)?.title_manual)
